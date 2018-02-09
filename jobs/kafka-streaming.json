@@ -1,0 +1,26 @@
+{
+    "name": "Prototype streaming job",
+    "lifecycle": "persistent",
+    "workers": 1,
+    "assets": ["streaming"],
+    "operations": [
+        {
+            "_op": "kafka_stream_reader",
+            "topic": "generated-filter-experiment",
+            "connection": "default",
+            "group": "data-reader-r5"
+        },
+        {
+            "_op": "buffer_array",
+            "size": 10000
+        },
+        {
+            "_op": "teraslice_kafka_sender",
+            "topic": "generated-filter-experiment2",
+            "timestamp_field": "created",
+            "id_field": "url",
+            "connection": "default",
+            "size": 50000
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "streaming_asset_tests",
+  "version": "0.0.1",
+  "description": "Streaming asset tests",
+  "main": "index.js",
+  "author": "",
+  "scripts": {
+    "test": "jasmine spec/*",
+    "lint": "eslint processors/."
+  },
+  "dependencies": {
+    "lodash": "^4.17.4"
+  },
+  "devDependencies": {
+    "jasmine": "^2.8.0",
+    "teraslice_op_test_harness": "terascope/teraslice_op_test_harness",
+    "eslint": "^4.6.1",
+    "eslint-config-airbnb": "^15.1.0",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-jsx-a11y": "^5.1.1",
+    "eslint-plugin-react": "^7.3.0"
+  }
+}

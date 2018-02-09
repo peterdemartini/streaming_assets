@@ -1,0 +1,6 @@
+mkdir -p builds
+
+rm builds/processors.zip
+zip -r builds/processors.zip asset/
+
+curl -XPOST -H'Content-type: application/octet-stream' localhost:5678/assets --data-binary @builds/processors.zip

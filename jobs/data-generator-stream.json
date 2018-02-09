@@ -1,0 +1,32 @@
+{
+    "name": "Prototype streaming job",
+    "lifecycle": "persistent",
+    "workers": 1,
+    "assets": ["streaming"],
+    "operations": [
+        {
+            "_op": "elasticsearch_data_generator",
+            "size": 5000
+        },
+        {
+            "_op": "to_observable"
+        },
+        {
+            "_op": "transform",
+            "tx": "filter",
+            "args": "record",
+            "fn": "return record.userAgent.indexOf('Chrome') > 0"
+        },
+        {
+            "_op": "to_array"
+        },
+        {
+            "_op": "teraslice_kafka_sender",
+            "topic": "generated-filter-experiment",
+            "timestamp_field": "created",
+            "id_field": "url",
+            "connection": "default",
+            "size": 50000
+        }
+    ]
+}

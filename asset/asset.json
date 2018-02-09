@@ -1,0 +1,5 @@
+{
+    "name": "streaming",
+    "version": "0.0.4",
+    "description": "Prototype stream processing operators"
+}

@@ -1,0 +1,40 @@
+{
+    "name": "Prototype streaming job",
+    "lifecycle": "persistent",
+    "workers": 1,
+    "assets": ["streaming"],
+    "operations": [
+        {
+            "_op": "teraslice_kafka_reader",
+            "topic": "incoming-data",
+            "connection": "default",
+            "group": "data-reader-r1",
+            "size": 10000,
+            "wait": 5000
+        },
+        {
+            "_op": "json_protocol"
+        },
+        {
+            "_op": "stream"
+        },
+        {
+            "_op": "transform",
+            "tx": "map",
+            "args": "x",
+            "fn": "x + 1"
+        },
+        {
+            "_op": "transform",
+            "tx": "collect"
+        },
+        {
+            "_op": "teraslice_kafka_sender",
+            "topic": "intermediate-data-v1",
+            "timestamp_field": "date",
+            "id_field": "somefield",
+            "connection": "default",
+            "size": 50000
+        }
+    ]
+}
