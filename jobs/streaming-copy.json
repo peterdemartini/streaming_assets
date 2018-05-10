@@ -1,0 +1,23 @@
+{
+    "name": "Prototype streaming job",
+    "lifecycle": "persistent",
+    "workers": 1,
+    "assets": ["streaming"],
+    "operations": [
+        {
+            "_op": "kafka_stream_reader",
+            "topic": "incoming-1M-r2",
+            "connection": "default",
+            "group": "data-reader-r29",
+            "size": 100000
+        },
+        {
+            "_op": "kafka_stream_sender",
+            "topic": "copied-1M-r29",
+            "timestamp_field": "created",
+            "id_field": "url",
+            "connection": "default",
+            "size": 50000
+        }
+    ]
+}

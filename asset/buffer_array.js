@@ -10,16 +10,36 @@ function newProcessor(context, opConfig) {
     const shutdown = Rx.Observable
         .fromEvent(context.foundation.getEventEmitter(), 'worker:shutdown');
 
+    let configured = false;
+    let stream;
+    let count = 0;
+
     return function processor(incoming) {
-        return new Promise((resolve) => {
-            const stream = incoming
+        if (!configured) {
+            configured = true;
+            stream = incoming
                 .bufferTime(opConfig.wait, null, opConfig.size)
                 .takeUntil(shutdown);
+
+            //stream = incoming
+            //    .batchWithTimeOrCount(opConfig.wait, opConfig.size)
+        }
+        count++;
+        return new Promise((resolve) => {
+console.log('Promise pending resolution')
+
+// This may be returning the same batch everytime due to resolve being called more
+// than once.
+
+            //stream.fork().each(resolve);
 
             // TODO: this logic might lose any pending buffer at the time of
             // shutdown.
             stream.subscribe(
-                resolve,
+                () => {
+                    resolve();
+                    console.log("Resolving slice ", count);
+                },
                 () => {},
                 () => resolve([])
             );

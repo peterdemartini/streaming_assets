@@ -4,6 +4,10 @@ const Promise = require('bluebird');
 const _ = require('lodash');
 
 const Rx = require('rxjs');
+const H = require('highland');
+
+const CheckpointEntity = require('./CheckpointEntity');
+const StreamEntity = require('./StreamEntity');
 
 const KAFKA_NO_OFFSET_STORED = -168;
 
@@ -34,35 +38,59 @@ function newReader(context, opConfig) {
     const consumer = createConsumer();
 
     return new Promise(((resolve) => {
+console.log("Setting false initial")
         let readyToProcess = false;
 
         let rollbackOffsets = {};
+        let pendingOffsets = {};
         let startingOffsets = {};
         let endingOffsets = {};
 
         // This sets up the stream that we're going to send all
         // data down.
-        const stream = new Rx.Subject();
+        // const stream = new Rx.Subject();
+        const stream = H(); // Empty Highland Stream
+
+        // We need to add a checkpoint marker to the stream every opConfig.size
+        // records. This will trigger downstream operators to commit state as
+        // the checkpoint flows through.
+        // TODO: Commits at the reader level are less clear.
+        stream
+            .observe()
+            .filter(record => record instanceof StreamEntity)
+            .batch(opConfig.size)
+            //.windowCount(opConfig.size)
+            //.subscribe(() => {
+            .each(() => {
+                pendingOffsets = endingOffsets;
+                rollbackOffsets = startingOffsets;
+                startingOffsets = {};
+                endingOffsets = {};
+console.log("Emitting a checkpoint.")
+                stream.write(new CheckpointEntity(
+                //stream.next(new CheckpointEntity(
+                    /* TODO: need the slice_id here */
+                ));
+            });
+
+        const kafkaError = Rx.Observable.fromEvent(consumer, 'error');
+        let kafkaErrorSubscription;
 
         Rx.Observable
-            .fromEvent(context.foundation.getEventEmitter(), 'slice:success')
+            .fromEvent(events, 'slice:success')
             .subscribe(() => {
                 readyToProcess = false;
 
                 try {
                     // Ideally we'd use commitSync here but it seems to throw
                     // an exception everytime it's called.
-                    _.forOwn(endingOffsets, (offset, partition) => {
+                    _.forOwn(pendingOffsets, (offset, partition) => {
                         consumer.commitSync({
                             partition: parseInt(partition, 10),
                             offset,
                             topic: opConfig.topic
                         });
                     });
-
-                    rollbackOffsets = startingOffsets;
-                    startingOffsets = {};
-                    endingOffsets = {};
                 } catch (err) {
                     // If this is the first slice and the slice is Empty
                     // there may be no offsets stored which is not really
@@ -74,12 +102,15 @@ function newReader(context, opConfig) {
             });
 
         const sliceFinalize = Rx.Observable
-            .fromEvent(context.foundation.getEventEmitter(), 'slice:finalize');
+            .fromEvent(events, 'slice:finalize');
 
-        sliceFinalize.subscribe(() => { readyToProcess = true; });
+        sliceFinalize.subscribe(() => {
+            readyToProcess = true;
+            kafkaErrorSubscription.unsubscribe();
+        });
 
         Rx.Observable
-            .fromEvent(context.foundation.getEventEmitter(), 'slice:retry')
+            .fromEvent(events, 'slice:retry')
             .subscribe(() => {
                 readyToProcess = false;
 
@@ -95,7 +126,7 @@ function newReader(context, opConfig) {
                         topic: opConfig.topic
                     }, 1000, (err) => {
                         if (err) {
-                            logger.error(err);
+                            jobLogger.error(err);
                         }
 
                         count -= 1;
@@ -107,15 +138,15 @@ function newReader(context, opConfig) {
             });
 
         Rx.Observable
-            .fromEvent(context.foundation.getEventEmitter(), 'worker:shutdown')
+            .fromEvent(events, 'worker:shutdown')
             // Defer shutdown until final slice has finished.
             .sample(sliceFinalize)
             .subscribe(() => {
+                //stream.end();
+                stream.complete();
                 readyToProcess = false;
                 consumer.disconnect();
             });
-
-        const kafkaError = Rx.Observable.fromEvent(consumer, 'error');
 
         function initializeConsumer() {
             consumer.on('ready', () => {
@@ -134,18 +165,16 @@ function newReader(context, opConfig) {
         }
 
         initializeConsumer();
+        let count = 0;
 
         function processSlice(data, logger) {
             return new Promise(((resolveSlice, reject) => {
-                let count = 0;
-
                 const consuming = setInterval(consume, 1);
 
                 resolveSlice(stream);
 
-                kafkaError.subscribe((err) => {
+                kafkaErrorSubscription = kafkaError.subscribe((err) => {
                     clearInterval(consuming);
-                    kafkaError.unsubscribe();
 
                     logger.error(err);
                     reject(err);
@@ -159,9 +188,9 @@ function newReader(context, opConfig) {
                     // We only want one consume call active at any given time
                     readyToProcess = false;
 
-                    // Our goal is to get up to opConfig.size messages but
+                    // Our goal is to get up to opConfig.batch messages but
                     // we may get less on each call.
-                    consumer.consume(opConfig.size, (err, messages) => {
+                    consumer.consume(opConfig.batch_size, (err, messages) => {
                         if (err) {
                             // logger.error(err);
                             reject(err);
@@ -180,21 +209,31 @@ function newReader(context, opConfig) {
                             // they can be committed.
                             endingOffsets[message.partition] = message.offset + 1;
 
+                            let record = message.value;
                             if (opConfig.output_format === 'json') {
                                 try {
-                                    stream.next(JSON.parse(message.value));
+                                    record = JSON.parse(message.value);
                                 } catch (e) {
                                     logger.error('Invalid record ', e);
                                     // TODO: shunt off invalid records to dead letter office
                                 }
-                            } else {
-                                stream.next(message.value);
                             }
 
                             count += 1;
                             if (count % 1000 === 0) {
                                 console.log('Have read ', count, 'results');
                             }
+
+                            /* stream.next(new StreamEntity(
+                                record,
+                                message.key,
+                                new Date(message.timestamp)
+                            )); */
+                            stream.write(new StreamEntity(
+                                record,
+                                message.key,
+                                new Date(message.timestamp)
+                            ));
                         });
 
                         readyToProcess = true;
@@ -238,18 +277,13 @@ function schema() {
             format: ['smallest', 'earliest', 'beginning', 'largest', 'latest', 'error']
         },
         size: {
-            doc: 'How many records to read before a slice is considered complete.',
+            doc: 'How many records should be read before each slice checkpoint.',
+            default: 10000,
+            format: Number
+        },
+        batch_size: {
+            doc: 'How many records to request for each batch',
             default: 1000,
-            format: Number
-        },
-        wait: {
-            doc: 'How long to wait for a full chunk of data to be available. Specified in milliseconds.',
-            default: 30000,
-            format: Number
-        },
-        interval: {
-            doc: 'How often to attempt to consume `size` number of records. This only comes into play if the initial consume could not get a full slice.',
-            default: 50,
             format: Number
         },
         connection: {
