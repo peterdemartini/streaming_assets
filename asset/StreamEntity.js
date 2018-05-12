@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 
 /**
  * key - A unique key for the data entity
@@ -10,15 +10,15 @@
  * eventTime - Time associated with actual event that is extracted from the
  *      data record.
  */
-const StreamEntity = function StreamEntity(data, key, ingestTime, processTime, eventTime) {
-    this.key = key;
-    this.data = data;
-    this.ingestTime = ingestTime;
-    this.processTime = processTime;
-    this.eventTime = eventTime;
-};
+const StreamEntity = function StreamEntity (data, key, ingestTime, processTime, eventTime) {
+  this.key = key
+  this.data = data
+  this.ingestTime = ingestTime
+  this.processTime = processTime
+  this.eventTime = eventTime
+}
 
 /* StreamEntity.prototype.x = function x(value) {
 }; */
 
-module.exports = StreamEntity;
+module.exports = StreamEntity
