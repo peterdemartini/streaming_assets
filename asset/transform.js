@@ -5,13 +5,8 @@
  *
  */
 function newProcessor(context, opConfig) {
-    //try {
-        // eslint-disable-next-line no-new-func
-        const fn = Function(opConfig.args, opConfig.fn);
-    /*}
-    catch (err) {
-        console.log("Error preparing transform " + err);
-    }*/
+    // eslint-disable-next-line no-new-func
+    const fn = Function(opConfig.args, opConfig.fn);
 
     return function processor(stream) {
         if (opConfig.fn) {

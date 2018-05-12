@@ -1,13 +1,10 @@
 'use strict';
 
 const Promise = require('bluebird');
-const Rx = require('rxjs');
-
-const CheckpointEntity = require('./CheckpointEntity');
-const StreamEntity = require('./StreamEntity');
 
 function newProcessor(context, opConfig) {
-    let producerReady = false;
+    const _producerReady = false;
+    const foundationEvents = context.foundation.getEventEmitter();
 
     const bufferSize = 5 * opConfig.size;
 
@@ -27,108 +24,29 @@ function newProcessor(context, opConfig) {
         }
     }).client;
 
-    producer.on('ready', () => {
-        producerReady = true;
-    });
-
-    // Use this to immediately flush the buffer so the job can exit..
-    const shutdown = Rx.Observable
-        .fromEvent(context.foundation.getEventEmitter(), 'worker:shutdown');
-
-    let configured = false;
-    let stream;
-    let response;
-    let checkpoints;
-    let count = 0;
-
-    return function processor(incoming) {
-        return new Promise((resolve, reject) => {
-            // TODO: this logic might lose any pending buffer at the time of
-            // shutdown.
-            if (!configured) {
-                configured = true;
-
-                // We return an observer of the stream so as not to impose
-                // backpressure.
-                response = incoming.observe();
-
-                let bufferCount = 0;
-
-                // Pull off a separate stream of checkpoint entries so we can know
-                // when to flush.
-                checkpoints = incoming
-                    .fork()
-                    .filter(record => record instanceof CheckpointEntity)
-                    //.tap(console.log)
-                    //.each(record => console.log(record));
-
-                stream = incoming
-                    .fork()
-                    .filter(record => record instanceof StreamEntity)
-                    .batchWithTimeOrCount(opConfig.wait, opConfig.size)
-                    .each(records => send(records));
-                    //.takeUntil(shutdown)
-                    // This buffer should now be whatever intermediate size we want.
-                    //.bufferCount(opConfig.size)
-                    //.bufferTime(opConfig.wait, null, opConfig.size)
-                    /*.bufferWhen(Rx.Observable.race(
-                        Rx.Observable.interval(opConfig.wait),
-                        checkpoints
-                    ))*/
-                    //.do((record) => bufferCount += 1)
-                    //.bufferTime(opConfig.wait, null, opConfig.size)
-                    //.bufferCount(opConfig.size)
-                    // .do(() => console.log("BUFFER flushing"))
-                    //.window(checkpoints)
-                    //.mergeAll()
-                    //.bufferTime(opConfig.wait, null, opConfig.size)
-
-                /* stream.subscribe(
-                    (records) => { send(records); },
-                    () => {},
-                    () => { console.log('Stream completed', bufferCount); }
-                ); */
-            }
-
-            checkpoints
-                .tap(console.log)
-                .each(() => flush(true));
-
-            /* checkpoints.subscribe(
-                () => { flush(true); },
-                () => {},
-                () => { flush(false); }
-            ); */
-
-            function error(err) {
-                reject(err);
-            }
-
-            function flush(checkpointing) {
-                // TODO: this flush timeout may need to be configurable
-                producer.flush(60000, (err) => {
-                    // Remove the error listener so they don't accrue across slices.
-                    producer.removeListener('event.error', error);
-console.log("flushing " + count + " " + checkpointing);
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-
-                    // TODO: this will switch to being driven by checkpoints
-                    if (checkpointing) {
-                        resolve(response);
-                    }
-                });
-            }
+    const producerReady = (callback) => {
+        if (_producerReady) {
+            callback();
+            return;
+        }
+        producer.once('ready', () => {
+            callback();
+        });
+    };
+    return function processor(stream) {
+        return new Promise((resolve) => {
+            foundationEvents.once('worker:shutdown', () => {
+                stream.end();
+            });
+            stream.fork()
+                .filter(record => record)
+                .batchWithTimeOrCount(opConfig.wait, opConfig.size)
+                .each(send)
+                .done(resolve);
 
             function send(records) {
-                if (producerReady) {
-                    for (let i = 0; i < records.length; i += 1) {
-                        const record = records[i];
-
-                        count += 1;
-if (count % 1000 === 0) console.log("Processed for send: ", count);
+                producerReady(() => {
+                    records.forEach((record) => {
                         producer.produce(
                             opConfig.topic,
                             // This is the partition. There may be use cases where
@@ -138,10 +56,8 @@ if (count % 1000 === 0) console.log("Processed for send: ", count);
                             record.key, // key
                             record.processTime // timestamp ... which one to use here?
                         );
-                    }
-
-                    flush(false);
-                }
+                    });
+                });
             }
         });
     };
