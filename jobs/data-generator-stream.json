@@ -9,16 +9,10 @@
             "size": 5000
         },
         {
-            "_op": "to_observable"
-        },
-        {
             "_op": "transform",
             "tx": "filter",
             "args": "record",
             "fn": "return record.userAgent.indexOf('Chrome') > 0"
-        },
-        {
-            "_op": "to_array"
         },
         {
             "_op": "teraslice_kafka_sender",

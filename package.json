@@ -12,8 +12,12 @@
     "lodash": "^4.17.4"
   },
   "devDependencies": {
+    "eslint": "^4.19.1",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.11.0",
+    "eslint-plugin-jsx-a11y": "^6.0.3",
+    "eslint-plugin-react": "^7.8.2",
     "jasmine": "^2.8.0",
-    "standard": "^11.0.1",
     "teraslice_op_test_harness": "terascope/teraslice_op_test_harness"
   }
 }
