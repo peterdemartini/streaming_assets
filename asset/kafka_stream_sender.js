@@ -1,12 +1,14 @@
 'use strict';
 
 const Promise = require('bluebird');
+const _ = require('lodash');
+const H = require('highland');
 
 function newProcessor(context, opConfig) {
     const jobLogger = context.logger;
     const events = context.foundation.getEventEmitter();
-
     const bufferSize = 5 * opConfig.size;
+    let flushAfterBatch;
 
     const producerStream = context.foundation.getConnection({
         type: 'kafka',
@@ -24,13 +26,22 @@ function newProcessor(context, opConfig) {
         }
     }).client;
     const producer = producerStream.producer;
-    events.on('worker:shutdown', () => {
+    const flush = (callback) => {
         producer.flush(60000, (err) => {
-            producer.removeListener('event.error', err);
-            if (err) {
+            if (err != null) {
                 jobLogger.error(err);
-                return;
+                callback(err);
             }
+            callback();
+        });
+    };
+    const newFlushAfterBatch = () => _.after(opConfig.size, () => {
+        flush(_.noop);
+        flushAfterBatch = newFlushAfterBatch();
+    });
+    flushAfterBatch = newFlushAfterBatch();
+    events.on('worker:shutdown', () => {
+        flush(() => {
             producerStream.close();
         });
     });
@@ -41,30 +52,34 @@ function newProcessor(context, opConfig) {
         jobLogger.error(err);
     });
 
+
     return function processor(stream) {
         return new Promise((resolve, reject) => {
             stream
-                .stopOnError((err) => {
-                    reject(err);
-                })
-                .map((record) => {
+                .consume((err, record, push, next) => {
+                    if (err) {
+                        // pass errors along the stream and consume next value
+                        push(err);
+                        next();
+                        return;
+                    } else if (record === H.nil) {
+                        // pass nil (end event) along the stream
+                        push(null, record);
+                        return;
+                    }
+                    flushAfterBatch();
                     producerStream.write({
                         topic: opConfig.topic,
                         partition: null,
                         value: Buffer.from(JSON.stringify(record.data)),
                         key: record.key,
                         timestamp: record.processTime,
+                    }, () => {
+                        push(null, record);
+                        next();
                     });
-                    return record;
-                }).toArray((result) => {
-                    producer.flush(60000, (err) => {
-                        producer.removeListener('event.error', err);
-                        if (err) {
-                            reject(err);
-                            return;
-                        }
-                        resolve(result);
-                    });
+                }).stopOnError(reject).toArray((results) => {
+                    resolve(H(results));
                 });
         });
     };

@@ -61,18 +61,19 @@ describe('kafka_stream_sender', () => {
             stream.end();
         });
 
-        // harness.run(Rx.Observable.from(records), opConfig)
         harness.run(stream, opConfig)
-            .then((results) => {
-                expect(results.length).toEqual(opConfig.size);
+            .then((resultStream) => {
+                resultStream.toArray((results) => {
+                    expect(results.length).toEqual(opConfig.size);
 
-                // All the results should be the same.
-                expect(results[0] instanceof StreamEntity).toBe(true);
-                expect(results[0].data.host).toContain('example');
-                expect(results[1] instanceof StreamEntity).toBe(true);
-                expect(results[1].data.host).toContain('example');
+                    // All the results should be the same.
+                    expect(results[0] instanceof StreamEntity).toBe(true);
+                    expect(results[0].data.host).toContain('example');
+                    expect(results[1] instanceof StreamEntity).toBe(true);
+                    expect(results[1].data.host).toContain('example');
 
-                done();
+                    done();
+                });
             });
     });
 });

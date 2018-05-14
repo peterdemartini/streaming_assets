@@ -20,7 +20,7 @@
             "timestamp_field": "created",
             "id_field": "url",
             "connection": "default",
-            "size": 50000
+            "size": 500
         }
     ]
 }

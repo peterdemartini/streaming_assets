@@ -121,7 +121,7 @@ function newReader(context, opConfig) {
                 }
                 if (processedRecords === opConfig.size) {
                     stream.pause();
-                    push(null, H.nil);
+                    batchStream.end();
                 }
             });
         });
