@@ -23,10 +23,17 @@ function newProcessor(context, opConfig) {
             'log.connection.close': false
         }
     }).client;
-    events.on('worker:shutdown', () => {
-        producerStream.close();
-    });
     const producer = producerStream.producer;
+    events.on('worker:shutdown', () => {
+        producer.flush(60000, (err) => {
+            producer.removeListener('event.error', err);
+            if (err) {
+                jobLogger.error(err);
+                return;
+            }
+            producerStream.close();
+        });
+    });
     producerStream.on('error', (err) => {
         jobLogger.error(err);
     });
@@ -50,7 +57,14 @@ function newProcessor(context, opConfig) {
                     });
                     return record;
                 }).toArray((result) => {
-                    resolve(result);
+                    producer.flush(60000, (err) => {
+                        producer.removeListener('event.error', err);
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        resolve(result);
+                    });
                 });
         });
     };

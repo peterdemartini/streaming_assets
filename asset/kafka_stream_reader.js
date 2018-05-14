@@ -76,13 +76,15 @@ function newReader(context, opConfig) {
                 topic: opConfig.topic
             }, 1000, (err) => {
                 if (err) {
-                    jobLogger.error(err);
+                    reject(err);
                     return;
                 }
                 resolve();
             });
         })).then(() => {
             stream.resume();
+        }, (err) => {
+            jobLogger.err(err);
         });
     });
     events.on('worker:shutdown', () => {
@@ -117,7 +119,7 @@ function newReader(context, opConfig) {
                 } else {
                     stream.pause();
                 }
-                if (processedRecords == opConfig.size) {
+                if (processedRecords === opConfig.size) {
                     stream.pause();
                     push(null, H.nil);
                 }
