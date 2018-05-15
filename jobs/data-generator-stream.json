@@ -2,25 +2,29 @@
     "name": "Prototype streaming job",
     "lifecycle": "persistent",
     "workers": 1,
-    "assets": ["streaming"],
+    "assets": [
+        "streaming"
+    ],
     "operations": [
         {
             "_op": "elasticsearch_data_generator",
-            "size": 5000
+            "size": 500
         },
         {
-            "_op": "transform",
-            "tx": "filter",
-            "args": "record",
-            "fn": "return record.userAgent.indexOf('Chrome') > 0"
+            "_op": "to_stream"
         },
         {
-            "_op": "teraslice_kafka_sender",
+            "_op": "kafka_stream_sender",
             "topic": "generated-filter-experiment",
             "timestamp_field": "created",
             "id_field": "url",
             "connection": "default",
             "size": 500
         }
-    ]
+    ],
+    "tjm": {
+        "cluster": "http://localhost",
+        "version": "0.0.1",
+        "job_id": "374fb98b-96f0-48f5-8ce8-c490b67e8439"
+    }
 }

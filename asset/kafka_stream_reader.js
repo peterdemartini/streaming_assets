@@ -12,24 +12,33 @@ const KAFKA_NO_OFFSET_STORED = -168;
 function newReader(context, opConfig) {
     const events = context.foundation.getEventEmitter();
     const jobLogger = context.logger;
+    let consumerStream;
 
-    const consumerStream = context.foundation.getConnection({
-        type: 'kafka',
-        endpoint: opConfig.connection,
-        options: {
-            type: 'consumer-stream',
-            group: opConfig.group
-        },
-        topic_options: {
-            'auto.offset.reset': opConfig.offset_reset
-        },
-        rdkafka_options: {
-            // We want to explicitly manage offset commits.
-            'enable.auto.commit': false,
-            'enable.auto.offset.store': false,
-            'queued.min.messages': 2 * opConfig.size
-        }
-    }).client;
+    try {
+        consumerStream = context.foundation.getConnection({
+            type: 'kafka',
+            endpoint: opConfig.connection,
+            options: {
+                type: 'consumer-stream',
+                group: opConfig.group
+            },
+            topic_options: {
+                'auto.offset.reset': opConfig.offset_reset
+            },
+            stream_options: {
+                topics: [opConfig.topic]
+            },
+            rdkafka_options: {
+                // We want to explicitly manage offset commits.
+                'enable.auto.commit': false,
+                'enable.auto.offset.store': false,
+                'queued.min.messages': 2 * opConfig.size
+            }
+        }).client;
+    } catch (error) {
+        jobLogger.error(error);
+        return Promise.reject(error);
+    }
 
     const stream = H(consumerStream);
     const consumer = consumerStream.consumer;
@@ -97,28 +106,23 @@ function newReader(context, opConfig) {
     consumerStream.on('error', (err) => {
         jobLogger.error(err);
     });
-    return () => new Promise((resolve) => {
-        consumer.subscribe([opConfig.topic]);
+    return (data, sliceLogger) => new Promise((resolve) => {
         let processedRecords = 0;
         const batchStream = H((push) => {
-            stream.resume();
             stream.each((message) => {
-                const success = push(message);
-                if (success) {
-                    processedRecords += 1;
-                    // We want to track the first offset we receive so
-                    // we can rewind if there is an error.
-                    if (!startingOffsets[message.partition]) {
-                        startingOffsets[message.partition] = message.offset;
-                    }
-
-                    // We record the last offset we see for each
-                    // partition so that if the slice is successfull
-                    // they can be committed.
-                    endingOffsets[message.partition] = message.offset + 1;
-                } else {
-                    stream.pause();
+                sliceLogger.info('pushing message', message);
+                push(null, message);
+                processedRecords += 1;
+                // We want to track the first offset we receive so
+                // we can rewind if there is an error.
+                if (!startingOffsets[message.partition]) {
+                    startingOffsets[message.partition] = message.offset;
                 }
+
+                // We record the last offset we see for each
+                // partition so that if the slice is successfull
+                // they can be committed.
+                endingOffsets[message.partition] = message.offset + 1;
                 if (processedRecords === opConfig.size) {
                     stream.pause();
                     batchStream.end();

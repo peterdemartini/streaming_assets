@@ -53,8 +53,9 @@ function newProcessor(context, opConfig) {
     });
 
 
-    return function processor(stream) {
+    return function processor(stream, sliceLogger) {
         return new Promise((resolve, reject) => {
+            sliceLogger.info('starting batch');
             stream
                 .consume((err, record, push, next) => {
                     if (err) {
@@ -79,6 +80,7 @@ function newProcessor(context, opConfig) {
                         next();
                     });
                 }).stopOnError(reject).toArray((results) => {
+                    sliceLogger.info('finished batch');
                     resolve(H(results));
                 });
         });

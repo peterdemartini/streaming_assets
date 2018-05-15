@@ -2,7 +2,9 @@
     "name": "Prototype streaming job",
     "lifecycle": "persistent",
     "workers": 1,
-    "assets": ["streaming"],
+    "assets": [
+        "streaming"
+    ],
     "operations": [
         {
             "_op": "kafka_stream_reader",
@@ -11,16 +13,21 @@
             "group": "data-reader-r5"
         },
         {
-            "_op": "buffer_array",
-            "size": 10000
+            "_op": "transform",
+            "tx": "map",
+            "args": "record",
+            "fn": "return record"
         },
         {
-            "_op": "teraslice_kafka_sender",
-            "topic": "generated-filter-experiment2",
-            "timestamp_field": "created",
-            "id_field": "url",
-            "connection": "default",
-            "size": 50000
+            "_op": "to_array"
+        },
+        {
+            "_op": "stdout"
         }
-    ]
+    ],
+    "tjm": {
+        "cluster": "http://localhost",
+        "version": "0.0.1",
+        "job_id": "017a2175-f601-4706-ace6-78e94b9eaa21"
+    }
 }
