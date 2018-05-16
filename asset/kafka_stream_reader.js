@@ -71,8 +71,10 @@ function newReader(context, opConfig) {
             }
             return new StreamEntity(
                 record,
-                message.key,
-                new Date(message.timestamp)
+                {
+                    key: message.key,
+                    ingestTime: new Date(message.timestamp)
+                }
             );
         });
         const sliceRetry = () => {

@@ -53,6 +53,11 @@ function newProcessor(context, opConfig) {
     });
 
     return function processor(stream, sliceLogger) {
+        const shutdown = () => {
+            events.removeListener('worker:shutdown', shutdown);
+            stream.end();
+        };
+        events.on('worker:shutdown', shutdown);
         return new Promise((resolve, reject) => {
             sliceLogger.info('starting batch');
             stream
@@ -71,7 +76,7 @@ function newProcessor(context, opConfig) {
                     producerStream.write({
                         topic: opConfig.topic,
                         partition: null,
-                        value: Buffer.from(JSON.stringify(record.data)),
+                        value: record.toBuffer(),
                         key: record.key,
                         timestamp: record.processTime,
                     }, () => {

@@ -1,25 +1,22 @@
 'use strict';
 
 const H = require('highland');
+const _ = require('lodash');
 const StreamEntity = require('./StreamEntity');
 /*
  * This processor adapts the incoming array into a Highland stream so that
  * downstream processors can work on the stream.
  */
 function newProcessor(/* context */) {
-    return function processor(data, sliceLogger) {
-        if (H.isStream(data)) {
+    return function processor(input, sliceLogger) {
+        if (H.isStream(input)) {
             sliceLogger.info('input is already a stream');
-            return data;
+            return input;
         }
-        let dataArray = data;
-        // Handle moving the data array in the case of a full ES response.
-        if (data.hits && data.hits.hits) {
-            dataArray = data.hits.hits;
-        }
+        const dataArray = _.castArray(_.get(input, 'hits.hits', input));
 
         sliceLogger.info(`converted ${dataArray.length} to a stream`);
-        return H(dataArray).map(record => new StreamEntity(record, null, new Date()));
+        return H(_.map(dataArray, record => new StreamEntity(record)));
     };
 }
 

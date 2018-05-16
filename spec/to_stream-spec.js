@@ -38,6 +38,7 @@ describe('stream', () => {
         results.toArray((values) => {
             expect(values.length).toEqual(4);
 
+            expect(values[0].toBuffer()).toEqual(Buffer.from(JSON.stringify(values[0].data)));
             expect(values[0] instanceof StreamEntity).toBe(true);
             expect(values[0].data.host).toContain('example');
             expect(values[1] instanceof StreamEntity).toBe(true);
