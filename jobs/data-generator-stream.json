@@ -11,15 +11,12 @@
             "size": 500
         },
         {
-            "_op": "to_stream"
-        },
-        {
-            "_op": "kafka_stream_sender",
-            "topic": "generated-filter-experiment",
+            "_op": "teraslice_kafka_sender",
+            "topic": "streaming-test-etl",
             "timestamp_field": "created",
             "id_field": "url",
             "connection": "default",
-            "size": 500
+            "size": 5000
         }
     ],
     "tjm": {

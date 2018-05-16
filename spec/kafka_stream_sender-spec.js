@@ -29,29 +29,22 @@ describe('kafka_stream_sender', () => {
     // Mock out the context apis
         harness.context.foundation.getConnection = (config) => {
             expect(config.type).toEqual('kafka');
-            const client = new Writable({
-                write(message, encoding, next) {
-                    expect(message).not.toBeNull();
-                    expect(Buffer.isBuffer(message.value)).toBe(true);
-                    expect(message.topic).toEqual('testing');
-                    next();
-                },
-                objectMode: true
-            });
-            client.producer = {
-                state: 0,
-                // Produce is called once for every record.
-                produce() { this.state += 1; },
-                flush(timeout, cb) {
-                    // Flush should be called on opConfig.size boundaries
-                    expect(this.state % opConfig.size === 0).toBe(true);
-                    cb();
-                },
-                on(target, fn) { fn(); /* Immediately trigger producer ready */ },
-                removeListener() {}
-            };
 
-            return { client };
+            return {
+                client: {
+                    isConnected() { return true; },
+                    state: 0,
+                    // Produce is called once for every record.
+                    produce() { this.state += 1; },
+                    flush(timeout, cb) {
+                    // Flush should be called on opConfig.size boundaries
+                        expect(this.state % opConfig.size === 0).toBe(true);
+                        cb();
+                    },
+                    on(target, fn) { fn(); /* Immediately trigger producer ready */ },
+                    removeListener() {}
+                }
+            };
         };
 
         const stream = H((push) => {

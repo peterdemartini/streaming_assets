@@ -1,5 +1,5 @@
 {
-    "name": "Prototype streaming job",
+    "name": "Filter Data",
     "lifecycle": "persistent",
     "workers": 1,
     "assets": [
@@ -8,18 +8,17 @@
     "operations": [
         {
             "_op": "kafka_stream_reader",
-            "topic": "generated-filter-experiment",
+            "topic": "streaming-test-filter",
             "connection": "default",
-            "group": "data-reader-r5"
+            "group": "filter-reader"
         },
         {
-            "_op": "transform",
-            "tx": "map",
-            "args": "record",
-            "fn": "return record"
-        },
-        {
-            "_op": "to_array"
+            "_op": "filter",
+            "function": "startsWith",
+            "args": {
+                "path": ["userAgent"],
+                "value": "Chrome"
+            }
         },
         {
             "_op": "stdout"

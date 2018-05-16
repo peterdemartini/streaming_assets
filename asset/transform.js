@@ -10,7 +10,7 @@ function newProcessor(context, opConfig) {
     const fn = Function(opConfig.args, opConfig.fn);
 
     return function processor(input) {
-        const stream = H.isStream(input) ? input : H(input);
+        const stream = H.isStream(input) ? input.fork() : H(input);
         if (opConfig.fn) {
             return stream[opConfig.tx](fn);
         } else if (opConfig.obj) {

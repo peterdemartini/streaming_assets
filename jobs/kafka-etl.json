@@ -1,0 +1,35 @@
+{
+    "name": "ETL From Kafka to Kafka",
+    "lifecycle": "persistent",
+    "workers": 1,
+    "assets": [
+        "streaming"
+    ],
+    "operations": [
+        {
+            "_op": "kafka_stream_reader",
+            "topic": "streaming-test-etl",
+            "connection": "default",
+            "group": "streaming-etl",
+            "size": 1000
+        },
+        {
+            "_op": "map",
+            "function": "setDate",
+            "args": {
+                "path": ["discoveredAt"],
+                "timeFn": "now"
+            }
+        },
+        {
+            "_op": "kafka_stream_sender",
+            "topic": "streaming-test-filter",
+            "size": 1500
+        }
+    ],
+    "tjm": {
+        "cluster": "http://localhost",
+        "version": "0.0.1",
+        "job_id": "017a2175-f601-4706-ace6-78e94b9eaa21"
+    }
+}

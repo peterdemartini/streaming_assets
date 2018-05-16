@@ -4,6 +4,7 @@
 
 const processor = require('../asset/map');
 const harness = require('teraslice_op_test_harness')(processor);
+const StreamEntity = require('../asset/StreamEntity');
 
 const _ = require('lodash');
 
@@ -16,22 +17,58 @@ const inputRecords = [
     { host: 'www.example.co.uk' }
 ];
 
-const opConfig = {
-    args: 'x',
-    fn: 'x.host += "-test"; return x;'
-};
-
 describe('map', () => {
-    it('should map each input value', () => {
-        const results = harness.run(H(_.cloneDeep(inputRecords)), opConfig);
+    it('should map add processed to each record', () => {
+        const opConfig = {
+            function: 'set',
+            args: {
+                path: ['processed'],
+                value: true
+            }
+        };
+
+        const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
+        const results = harness.run(H(streamRecords), opConfig);
 
         results.toArray((values) => {
             expect(values.length).toEqual(4);
 
-            expect(values[0].host).toEqual('example.com-test');
-            expect(values[1].host).toEqual('www.example.com-test');
-            expect(values[2].host).toEqual('example.co.uk-test');
-            expect(values[3].host).toEqual('www.example.co.uk-test');
+            expect(values[0] instanceof StreamEntity).toBeTruthy();
+            expect(values[0].data.host).toEqual('example.com');
+            expect(values[1].data.host).toEqual('www.example.com');
+            expect(values[2].data.host).toEqual('example.co.uk');
+            expect(values[3].data.host).toEqual('www.example.co.uk');
+            expect(values[0].data.processed).toBeTruthy();
+            expect(values[1].data.processed).toBeTruthy();
+            expect(values[2].data.processed).toBeTruthy();
+            expect(values[3].data.processed).toBeTruthy();
+        });
+    });
+    it('should add a new date on processedAt', () => {
+        const opConfig = {
+            function: 'setDate',
+            args: {
+                path: ['processedAt'],
+                timeFn: 'now'
+            }
+        };
+        const startRange = Date.now() - 1;
+        const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
+        const results = harness.run(H(streamRecords), opConfig);
+
+        results.toArray((values) => {
+            expect(values.length).toEqual(4);
+
+            expect(values[0] instanceof StreamEntity).toBeTruthy();
+            expect(values[0].data.host).toEqual('example.com');
+            expect(values[1].data.host).toEqual('www.example.com');
+            expect(values[2].data.host).toEqual('example.co.uk');
+            expect(values[3].data.host).toEqual('www.example.co.uk');
+            const endRange = Date.now() + 1;
+            expect(_.inRange(values[0].data.processedAt, startRange, endRange)).toBeTruthy();
+            expect(_.inRange(values[1].data.processedAt, startRange, endRange)).toBeTruthy();
+            expect(_.inRange(values[2].data.processedAt, startRange, endRange)).toBeTruthy();
+            expect(_.inRange(values[3].data.processedAt, startRange, endRange)).toBeTruthy();
         });
     });
 });

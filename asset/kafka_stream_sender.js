@@ -10,12 +10,13 @@ function newProcessor(context, opConfig) {
     const bufferSize = 5 * opConfig.size;
     let flushAfterBatch;
 
-    const producerStream = context.foundation.getConnection({
+    const producer = context.foundation.getConnection({
         type: 'kafka',
         endpoint: opConfig.connection,
         options: {
-            type: 'producer-stream'
+            type: 'producer'
         },
+        autoconnect: false,
         rdkafka_options: {
             'compression.codec': opConfig.compression,
             'queue.buffering.max.messages': bufferSize,
@@ -25,7 +26,6 @@ function newProcessor(context, opConfig) {
             'log.connection.close': false
         }
     }).client;
-    const producer = producerStream.producer;
     const flush = (callback) => {
         producer.flush(60000, (err) => {
             if (err != null) {
@@ -35,59 +35,67 @@ function newProcessor(context, opConfig) {
             callback();
         });
     };
-    const newFlushAfterBatch = () => _.after(opConfig.size, () => {
-        flush(_.noop);
-        flushAfterBatch = newFlushAfterBatch();
-    });
-    flushAfterBatch = newFlushAfterBatch();
-    events.on('worker:shutdown', () => {
-        flush(() => {
-            producerStream.close();
-        });
-    });
-    producerStream.on('error', (err) => {
-        jobLogger.error(err);
-    });
     producer.on('event.error', (err) => {
         jobLogger.error(err);
     });
+    const connect = () => new Promise((resolve, reject) => {
+        if (producer.isConnected()) {
+            resolve();
+            return;
+        }
+        producer.connect({}, (err) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve();
+        });
+    });
 
     return function processor(stream, sliceLogger) {
-        const shutdown = () => {
-            events.removeListener('worker:shutdown', shutdown);
-            stream.end();
-        };
-        events.on('worker:shutdown', shutdown);
-        return new Promise((resolve, reject) => {
+        return connect().then(() => new Promise((resolve, reject) => {
+            let shuttingDown = false;
+            const shutdown = () => {
+                events.removeListener('worker:shutdown', shutdown);
+                shuttingDown = true;
+                flush(() => {
+                    resolve();
+                });
+            };
+            const results = [];
+            events.on('worker:shutdown', shutdown);
             sliceLogger.info('starting batch');
             stream
-                .consume((err, record, push, next) => {
-                    if (err) {
-                        // pass errors along the stream and consume next value
-                        push(err);
-                        next();
-                        return;
-                    } else if (record === H.nil) {
-                        // pass nil (end event) along the stream
-                        push(null, record);
+                .stopOnError((err) => {
+                    if (shuttingDown) {
+                        sliceLogger.error('stream error when shutting down');
                         return;
                     }
-                    flushAfterBatch();
-                    producerStream.write({
-                        topic: opConfig.topic,
-                        partition: null,
-                        value: record.toBuffer(),
-                        key: record.key,
-                        timestamp: record.processTime,
-                    }, () => {
-                        push(null, record);
-                        next();
+                    if (err) {
+                        reject(err);
+                    }
+                })
+                .each((record) => {
+                    results.push(record);
+                    producer
+                        .produce(
+                            opConfig.topic,
+                            null,
+                            record.toBuffer(),
+                            record.key,
+                            record.processTime.getTime()
+                        );
+                }).done(() => {
+                    if (shuttingDown) {
+                        sliceLogger.info('slice finished but waiting to producer to be flushed before shutting down');
+                        return;
+                    }
+                    sliceLogger.info('finished batch', _.size(results));
+                    flush(() => {
+                        resolve(H(results));
                     });
-                }).stopOnError(reject).toArray((results) => {
-                    sliceLogger.info('finished batch');
-                    resolve(H(results));
                 });
-        });
+        }));
     };
 }
 
