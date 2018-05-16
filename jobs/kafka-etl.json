@@ -8,9 +8,9 @@
     "operations": [
         {
             "_op": "kafka_stream_reader",
-            "topic": "streaming-test-etl",
+            "topic": "kafka-etl",
             "connection": "default",
-            "group": "streaming-etl",
+            "group": "kafka-etl-1",
             "size": 1000
         },
         {
@@ -23,12 +23,12 @@
         },
         {
             "_op": "kafka_stream_sender",
-            "topic": "streaming-test-filter",
-            "size": 1500
+            "topic": "kafka-filter",
+            "size": 1000
         }
     ],
     "tjm": {
-        "cluster": "http://localhost",
+        "cluster": "http://localhost:5678",
         "version": "0.0.1",
         "job_id": "017a2175-f601-4706-ace6-78e94b9eaa21"
     }

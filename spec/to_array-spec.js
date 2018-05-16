@@ -25,6 +25,7 @@ describe('to_array', () => {
 
         results
             .then((values) => {
+                expect(H.isStream(values)).toBeFalsy();
                 expect(values.length).toEqual(4);
 
                 expect(values[0].host).toContain('example');

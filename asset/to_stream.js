@@ -10,7 +10,7 @@ const StreamEntity = require('./StreamEntity');
 function newProcessor(/* context */) {
     return function processor(input, sliceLogger) {
         if (H.isStream(input)) {
-            sliceLogger.info('input is already a stream');
+            sliceLogger.info('to_stream input is already a stream');
             return input;
         }
         const dataArray = _.castArray(_.get(input, 'hits.hits', input));

@@ -1,16 +1,14 @@
 'use strict';
 
 /*
- * This processor adapts the incoming array into a Highland stream so that
- * downstream processors can work on the stream.
+ * This teraslice process debugs incoming data and pass it along
  */
 
 const util = require('util');
 
 function newProcessor() {
     return function processor(input, sliceLogger) {
-        sliceLogger.debug(typeof input);
-        sliceLogger.debug(util.inspect(input));
+        sliceLogger.info(`debug_processor: type: ${typeof input}, value: ${util.inspect(input)}`);
         return Promise.resolve(input);
     };
 }

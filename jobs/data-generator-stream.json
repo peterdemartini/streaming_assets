@@ -1,5 +1,5 @@
 {
-    "name": "Prototype streaming job",
+    "name": "Data generation job",
     "lifecycle": "persistent",
     "workers": 1,
     "assets": [
@@ -11,16 +11,19 @@
             "size": 500
         },
         {
+            "_op": "wait",
+            "ms": 10000
+        },
+        {
             "_op": "teraslice_kafka_sender",
-            "topic": "streaming-test-etl",
+            "topic": "kafka-etl",
             "timestamp_field": "created",
-            "id_field": "url",
-            "connection": "default",
-            "size": 5000
+            "id_field": "uuid",
+            "connection": "default"
         }
     ],
     "tjm": {
-        "cluster": "http://localhost",
+        "cluster": "http://localhost:5678",
         "version": "0.0.1",
         "job_id": "374fb98b-96f0-48f5-8ce8-c490b67e8439"
     }

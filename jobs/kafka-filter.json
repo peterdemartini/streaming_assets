@@ -1,5 +1,5 @@
 {
-    "name": "Filter Data",
+    "name": "Filter Data from Kafka",
     "lifecycle": "persistent",
     "workers": 1,
     "assets": [
@@ -8,25 +8,31 @@
     "operations": [
         {
             "_op": "kafka_stream_reader",
-            "topic": "streaming-test-filter",
+            "topic": "kafka-filter",
             "connection": "default",
-            "group": "filter-reader"
+            "group": "kafka-filter-1",
+            "size": 1000
         },
         {
             "_op": "filter",
             "function": "startsWith",
             "args": {
-                "path": ["userAgent"],
+                "path": [
+                    "userAgent"
+                ],
                 "value": "Chrome"
             }
         },
         {
-            "_op": "stdout"
+            "_op": "to_array"
+        },
+        {
+            "_op": "debug"
         }
     ],
     "tjm": {
-        "cluster": "http://localhost",
+        "cluster": "http://localhost:5678",
         "version": "0.0.1",
-        "job_id": "017a2175-f601-4706-ace6-78e94b9eaa21"
+        "job_id": "274b6d53-b9c6-4b24-8559-f254f7620f2d"
     }
 }

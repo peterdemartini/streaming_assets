@@ -16,6 +16,9 @@ function newProcessor(context, opConfig) {
         const functions = {
             startsWith: record => _.startsWith(_.get(record.data, args.path), args.value)
         };
+        if (!_.isFunction(functions[fn])) {
+            return Promise.reject(new Error('Not a valid filter function'));
+        }
         return stream.filter(functions[fn]);
     };
 }

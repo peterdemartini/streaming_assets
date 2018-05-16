@@ -8,8 +8,6 @@ function newProcessor(context, opConfig) {
     const jobLogger = context.logger;
     const events = context.foundation.getEventEmitter();
     const bufferSize = 5 * opConfig.size;
-    let flushAfterBatch;
-
     const producer = context.foundation.getConnection({
         type: 'kafka',
         endpoint: opConfig.connection,
@@ -64,14 +62,15 @@ function newProcessor(context, opConfig) {
             };
             const results = [];
             events.on('worker:shutdown', shutdown);
-            sliceLogger.info('starting batch');
+            sliceLogger.info('kafka_stream_sender starting batch');
             stream
                 .stopOnError((err) => {
                     if (shuttingDown) {
-                        sliceLogger.error('stream error when shutting down');
+                        sliceLogger.error('kafka_stream_sender stream error when shutting down', err);
                         return;
                     }
                     if (err) {
+                        sliceLogger.error('kafka_stream_sender stream error', err);
                         reject(err);
                     }
                 })
@@ -87,10 +86,10 @@ function newProcessor(context, opConfig) {
                         );
                 }).done(() => {
                     if (shuttingDown) {
-                        sliceLogger.info('slice finished but waiting to producer to be flushed before shutting down');
+                        sliceLogger.info('kafka_stream_sender slice finished but waiting to producer to be flushed before shutting down');
                         return;
                     }
-                    sliceLogger.info('finished batch', _.size(results));
+                    sliceLogger.info('kafka_stream_sender finished batch', _.size(results));
                     flush(() => {
                         resolve(H(results));
                     });

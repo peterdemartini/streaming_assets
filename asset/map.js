@@ -26,6 +26,9 @@ function newProcessor(context, opConfig) {
                 return record;
             }
         };
+        if (!_.isFunction(functions[fn])) {
+            return Promise.reject(new Error('Not a valid map function'));
+        }
         return stream.map(functions[fn]);
     };
 }

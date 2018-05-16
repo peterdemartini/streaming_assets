@@ -1,49 +1,64 @@
 'use strict';
 
 const H = require('highland');
+const _ = require('lodash');
 
 function StreamBatch(client, onFinish) {
     let batchStream;
-    let stopped = false;
-    this.takeNext = (count, fn) => {
+    const finish = () => {
+        if (batchStream == null) {
+            return;
+        }
+        if (!batchStream.ended) {
+            batchStream.end();
+        }
+        onFinish();
+    };
+    client.on('unsubscribed', finish);
+    client.on('disconnected', finish);
+    this.takeNext = (batchSize, fn, logger) => {
+        if (!_.isNumber(batchSize)) {
+            throw new Error('Incorrect batch size');
+        }
         batchStream = H((push) => {
-            client.once('unsubscribed', () => {
-                push(new Error('client unsubscribed'));
-                push(null, H.nil);
-                stopped = true;
-            });
-            const pullNext = (i) => {
-                if (i >= count) {
-                    push(null, H.nil);
-                    onFinish();
+            const pullNext = (remaining) => {
+                logger.debug(`stream_batch: pullNext (${remaining})`);
+                if (batchStream.ended) {
+                    logger.debug('stream_batch: batchStream ended');
                     return;
                 }
-                client.consume((err, message) => {
+                if (!remaining) {
+                    logger.debug('stream_batch: batchStream done');
+                    finish();
+                    return;
+                }
+                if (batchSize !== remaining && batchStream.paused) {
+                    logger.debug('stream_batch: batchStream paused, waiting until it is available');
+                    _.delay(pullNext, Math.random() * 1000, remaining);
+                    return;
+                }
+                logger.debug('stream_batch: consuming...');
+                client.consume(remaining, (err, messages) => {
                     if (err) {
+                        logger.error('stream_batch: got message with error', err);
                         push(err);
                         // wait before we retry
-                        // setTimeout(() => {
-                        //     pullNext(i);
-                        // }, Math.random() * 1000).unref();
+                        _.delay(pullNext, Math.random() * 1000, remaining);
                         return;
                     }
-                    if (stopped) {
-                        setTimeout(pullNext, 10, i);
-                        return;
-                    }
-                    push(null, fn(message));
-                    pullNext(i - 1);
+                    logger.debug(`stream_batch: got messages ${_.size(messages)}`);
+                    _.forEach(messages, (message) => {
+                        push(null, fn(message));
+                    });
+                    pullNext(remaining - _.size(messages));
                 });
             };
-            pullNext(count);
+            pullNext(batchSize);
         });
         return batchStream;
     };
-    this.stop = () => {
-        stopped = true;
-    };
-    this.continue = () => {
-        stopped = false;
+    this.end = () => {
+        finish();
     };
 }
 

@@ -15,6 +15,7 @@ function newReader(context, opConfig) {
     let pendingOffsets = {};
     let startingOffsets = {};
     let endingOffsets = {};
+    const batchSize = opConfig.size;
     const consumer = context.foundation.getConnection({
         type: 'kafka',
         endpoint: opConfig.connection,
@@ -30,19 +31,19 @@ function newReader(context, opConfig) {
             // We want to explicitly manage offset commits.
             'enable.auto.commit': false,
             'enable.auto.offset.store': false,
-            'queued.min.messages': 2 * opConfig.size
+            'queued.min.messages': 2 * batchSize
         }
     }).client;
 
     const streamBatch = new StreamBatch(consumer, () => {
-        jobLogger.info('finished batch');
+        jobLogger.info('kafka_stream_reader finished batch');
     });
 
     events.on('worker:shutdown', () => {
-        streamBatch.stop();
+        streamBatch.end();
         consumer.unsubscribe();
         consumer.disconnect(() => {
-            jobLogger.info('consumer disconnected');
+            jobLogger.info('kafka_stream_reader consumer disconnected');
         });
     });
     consumer.on('event.error', (err) => {
@@ -55,7 +56,7 @@ function newReader(context, opConfig) {
         if (_.isEmpty(rollbackOffsets)) {
             return;
         }
-        streamBatch.stop();
+        streamBatch.end();
         _.forOwn(rollbackOffsets, (offset, partition) => {
             consumer.seek({
                 partition: parseInt(partition, 10),
@@ -104,12 +105,13 @@ function newReader(context, opConfig) {
                 reject(err);
                 return;
             }
+            consumer.subscribe([opConfig.topic]);
             resolve();
         });
     });
     return (data, sliceLogger) => connectToConsumer().then(() => {
-        sliceLogger.info('starting new batch of ', opConfig.size);
-        const batch = streamBatch.takeNext(opConfig.size, (message) => {
+        sliceLogger.info(`kafka_stream_reader starting new batch of ${batchSize}`);
+        const handleMessage = (message) => {
             if (!startingOffsets[message.partition]) {
                 startingOffsets[message.partition] = message.offset;
             }
@@ -123,7 +125,7 @@ function newReader(context, opConfig) {
                 try {
                     record = JSON.parse(message.value);
                 } catch (e) {
-                    sliceLogger.error('Invalid record ', e);
+                    sliceLogger.error('Kafka reader got an invalid record ', e);
                     // TODO: shunt off invalid records to dead letter office
                 }
             }
@@ -135,7 +137,8 @@ function newReader(context, opConfig) {
                     ingestTime: new Date(message.timestamp),
                 }
             );
-        });
+        };
+        const batch = streamBatch.takeNext(batchSize, handleMessage, sliceLogger);
         return Promise.resolve(batch);
     });
 }
@@ -172,11 +175,6 @@ function schema() {
         size: {
             doc: 'How many records should be read before each slice checkpoint.',
             default: 10000,
-            format: Number
-        },
-        batch_size: {
-            doc: 'How many records to request for each batch',
-            default: 1000,
             format: Number
         },
         connection: {
