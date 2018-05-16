@@ -15,19 +15,16 @@
         },
         {
             "_op": "filter",
-            "function": "startsWith",
+            "function": "random",
             "args": {
-                "path": [
-                    "userAgent"
-                ],
-                "value": "Chrome"
+                "chance": 100
             }
         },
         {
             "_op": "to_array"
         },
         {
-            "_op": "debug"
+            "_op": "stdout"
         }
     ],
     "tjm": {

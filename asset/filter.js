@@ -14,7 +14,8 @@ function newProcessor(context, opConfig) {
         const args = opConfig.args;
         const fn = opConfig.function;
         const functions = {
-            startsWith: record => _.startsWith(_.get(record.data, args.path), args.value)
+            startsWith: record => _.startsWith(_.get(record.data, args.path), args.value),
+            random: () => !_.random(0, args.chance || 10)
         };
         if (!_.isFunction(functions[fn])) {
             return Promise.reject(new Error('Not a valid filter function'));

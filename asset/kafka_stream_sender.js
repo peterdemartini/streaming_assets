@@ -85,6 +85,7 @@ function newProcessor(context, opConfig) {
                             record.processTime.getTime()
                         );
                 }).done(() => {
+                    events.removeListener('worker:shutdown', shutdown);
                     if (shuttingDown) {
                         sliceLogger.info('kafka_stream_sender slice finished but waiting to producer to be flushed before shutting down');
                         return;
