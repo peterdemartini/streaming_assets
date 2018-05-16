@@ -4,6 +4,7 @@
 
 const processor = require('../asset/to_array');
 const harness = require('teraslice_op_test_harness')(processor);
+const StreamEntity = require('../asset/StreamEntity');
 
 const _ = require('lodash');
 
@@ -20,8 +21,8 @@ const opConfig = {
 };
 
 describe('to_array', () => {
-    it('should get an array result from an Observable', () => {
-        const results = harness.run(H(_.cloneDeep(inputRecords)), opConfig);
+    it('should get handle a normal array', () => {
+        const results = harness.run(_.cloneDeep(inputRecords), opConfig);
 
         results
             .then((values) => {
@@ -36,7 +37,8 @@ describe('to_array', () => {
     });
 
     it('should get an array result from a stream', () => {
-        const results = harness.run(H(_.cloneDeep(inputRecords)), opConfig);
+        const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
+        const results = harness.run(streamRecords, opConfig);
 
         results
             .then((values) => {
