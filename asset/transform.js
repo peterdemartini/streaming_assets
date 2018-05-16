@@ -9,19 +9,15 @@ function newProcessor(context, opConfig) {
     // eslint-disable-next-line no-new-func
     const fn = Function(opConfig.args, opConfig.fn);
 
-    return function processor(stream, sliceLogger) {
-        if (!H.isStream(stream)) {
-            sliceLogger.warn('input is not a stream to transform');
-            return stream;
-        }
-        const forked = stream.fork();
+    return function processor(input) {
+        const stream = H.isStream(input) ? input : H(input);
         if (opConfig.fn) {
-            return forked[opConfig.tx](fn);
+            return stream[opConfig.tx](fn);
         } else if (opConfig.obj) {
-            return forked[opConfig.tx](opConfig.obj);
+            return stream[opConfig.tx](opConfig.obj);
         }
 
-        return forked[opConfig.tx]();
+        return stream[opConfig.tx]();
     };
 }
 

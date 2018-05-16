@@ -52,7 +52,6 @@ function newProcessor(context, opConfig) {
         jobLogger.error(err);
     });
 
-
     return function processor(stream, sliceLogger) {
         return new Promise((resolve, reject) => {
             sliceLogger.info('starting batch');

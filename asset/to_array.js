@@ -1,6 +1,7 @@
 'use strict';
 
 const H = require('highland');
+const _ = require('lodash');
 const Promise = require('bluebird');
 /*
  * This processor adapts the incoming array into a Highland stream so that
@@ -8,10 +9,15 @@ const Promise = require('bluebird');
  */
 function newProcessor() {
     return function processor(input) {
-        if (H.isStream(input)) {
-            return input.collect().toPromise(Promise);
-        }
-        return Promise.resolve(input);
+        return new Promise((resolve) => {
+            if (H.isStream(input)) {
+                input.toArray((result) => {
+                    resolve(result);
+                });
+                return;
+            }
+            resolve(_.castArray(input));
+        });
     };
 }
 

@@ -12,124 +12,54 @@ const KAFKA_NO_OFFSET_STORED = -168;
 function newReader(context, opConfig) {
     const events = context.foundation.getEventEmitter();
     const jobLogger = context.logger;
-    let consumerStream;
 
-    try {
-        consumerStream = context.foundation.getConnection({
-            type: 'kafka',
-            endpoint: opConfig.connection,
-            options: {
-                type: 'consumer-stream',
-                group: opConfig.group
-            },
-            topic_options: {
-                'auto.offset.reset': opConfig.offset_reset
-            },
-            stream_options: {
-                topics: [opConfig.topic]
-            },
-            rdkafka_options: {
-                // We want to explicitly manage offset commits.
-                'enable.auto.commit': false,
-                'enable.auto.offset.store': false,
-                'queued.min.messages': 2 * opConfig.size
-            }
-        }).client;
-    } catch (error) {
-        jobLogger.error(error);
-        return Promise.reject(error);
-    }
+    const consumerStream = context.foundation.getConnection({
+        type: 'kafka',
+        endpoint: opConfig.connection,
+        options: {
+            type: 'consumer-stream',
+            group: opConfig.group
+        },
+        topic_options: {
+            'auto.offset.reset': opConfig.offset_reset
+        },
+        stream_options: {
+            topics: [opConfig.topic]
+        },
+        rdkafka_options: {
+            // We want to explicitly manage offset commits.
+            'enable.auto.commit': false,
+            'enable.auto.offset.store': false,
+            'queued.min.messages': 2 * opConfig.size
+        }
+    }).client;
 
-    const stream = H(consumerStream);
+    const inputStream = H(consumerStream);
     const consumer = consumerStream.consumer;
 
-    let rollbackOffsets = {};
-    let pendingOffsets = {};
-    let startingOffsets = {};
-    let endingOffsets = {};
-
-    events.on('slice:success', () => {
-        try {
-            // Ideally we'd use commitSync here but it seems to throw
-            // an exception everytime it's called.
-            _.forOwn(pendingOffsets, (offset, partition) => {
-                consumer.commitSync({
-                    partition: parseInt(partition, 10),
-                    offset,
-                    topic: opConfig.topic
-                });
-            });
-        } catch (err) {
-            // If this is the first slice and the slice is Empty
-            // there may be no offsets stored which is not really
-            // an error.
-            if (err.code !== KAFKA_NO_OFFSET_STORED) {
-                jobLogger.error(`Kafka reader error after slice resolution ${err}`);
-            }
-        }
-        pendingOffsets = endingOffsets;
-        rollbackOffsets = startingOffsets;
-        startingOffsets = {};
-        endingOffsets = {};
-    });
-    events.on('slice:retry', () => {
-        if (_.isEmpty(rollbackOffsets)) {
-            return;
-        }
-        stream.pause();
-
-        Promise.each(rollbackOffsets, (offset, partition) => new Promise((resolve, reject) => {
-            consumer.seek({
-                partition: parseInt(partition, 10),
-                offset,
-                topic: opConfig.topic
-            }, 1000, (err) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve();
-            });
-        })).then(() => {
-            stream.resume();
-        }, (err) => {
-            jobLogger.err(err);
-        });
-    });
     events.on('worker:shutdown', () => {
-        consumer.unsubscribe();
-        stream.end();
+        consumerStream.destroy();
+        inputStream.destroy();
     });
     consumer.on('event.log', (event) => {
         jobLogger.info(event);
     });
-    consumerStream.on('error', (err) => {
-        jobLogger.error(err);
-    });
-    return (data, sliceLogger) => new Promise((resolve) => {
-        let processedRecords = 0;
-        const batchStream = H((push) => {
-            stream.each((message) => {
-                sliceLogger.info('pushing message', message);
-                push(null, message);
-                processedRecords += 1;
-                // We want to track the first offset we receive so
-                // we can rewind if there is an error.
-                if (!startingOffsets[message.partition]) {
-                    startingOffsets[message.partition] = message.offset;
-                }
+    return (data, sliceLogger) => {
+        let rollbackOffsets = {};
+        let pendingOffsets = {};
+        let startingOffsets = {};
+        let endingOffsets = {};
 
-                // We record the last offset we see for each
-                // partition so that if the slice is successfull
-                // they can be committed.
-                endingOffsets[message.partition] = message.offset + 1;
-                if (processedRecords === opConfig.size) {
-                    stream.pause();
-                    batchStream.end();
-                }
-            });
-        });
+        const batchStream = inputStream.take(opConfig.size);
         batchStream.map((message) => {
+            if (!startingOffsets[message.partition]) {
+                startingOffsets[message.partition] = message.offset;
+            }
+
+            // We record the last offset we see for each
+            // partition so that if the slice is successfull
+            // they can be committed.
+            endingOffsets[message.partition] = message.offset + 1;
             let record = message.value;
             if (opConfig.output_format === 'json') {
                 try {
@@ -145,8 +75,56 @@ function newReader(context, opConfig) {
                 new Date(message.timestamp)
             );
         });
-        resolve(batchStream);
-    });
+        const sliceRetry = () => {
+            events.removeListener('slice:retry', sliceRetry);
+            if (_.isEmpty(rollbackOffsets)) {
+                return;
+            }
+            batchStream.destroy();
+            inputStream.pause();
+            _.forOwn(rollbackOffsets, (offset, partition) => {
+                consumer.seek({
+                    partition: parseInt(partition, 10),
+                    offset,
+                    topic: opConfig.topic
+                }, 1000, (err) => {
+                    if (err) {
+                        sliceLogger.error(err);
+                        return;
+                    }
+                    sliceLogger.debug('consumer seek', { partition, offset });
+                });
+            });
+        };
+        const sliceSuccess = () => {
+            events.removeListener('slice:success', sliceSuccess);
+            try {
+                // Ideally we'd use commitSync here but it seems to throw
+                // an exception everytime it's called.
+                _.forOwn(pendingOffsets, (offset, partition) => {
+                    consumer.commitSync({
+                        partition: parseInt(partition, 10),
+                        offset,
+                        topic: opConfig.topic
+                    });
+                });
+            } catch (err) {
+                // If this is the first slice and the slice is Empty
+                // there may be no offsets stored which is not really
+                // an error.
+                if (err.code !== KAFKA_NO_OFFSET_STORED) {
+                    jobLogger.error(`Kafka reader error after slice resolution ${err}`);
+                }
+            }
+            pendingOffsets = endingOffsets;
+            rollbackOffsets = startingOffsets;
+            startingOffsets = {};
+            endingOffsets = {};
+        };
+        events.on('slice:retry', sliceRetry);
+        events.on('slice:success', sliceSuccess);
+        return Promise.resolve(batchStream);
+    };
 }
 
 function slicerQueueLength() {
