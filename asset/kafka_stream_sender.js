@@ -50,6 +50,24 @@ function newProcessor(context, opConfig) {
         });
     });
 
+    const getTimestamp = (record) => {
+        let date;
+        const now = opConfig.timestamp_now;
+        const field = opConfig.timestamp_field;
+        if (field) {
+            date = _.get(record.data, field);
+        } else if (now) {
+            date = new Date();
+        }
+        if (date == null) {
+            date = record.processTime;
+        }
+        if (!_.isDate(date)) {
+            date = new Date(date);
+        }
+        return date.getTime();
+    };
+
     return function processor(stream, sliceLogger) {
         return connect().then(() => new Promise((resolve, reject) => {
             let shuttingDown = false;
@@ -76,13 +94,15 @@ function newProcessor(context, opConfig) {
                 })
                 .each((record) => {
                     results.push(record);
+                    const key = _.get(record.data, opConfig.id_field, record.key);
+                    const timestamp = getTimestamp(record);
                     producer
                         .produce(
                             opConfig.topic,
                             null,
                             record.toBuffer(),
-                            record.key,
-                            record.processTime.getTime()
+                            key,
+                            timestamp
                         );
                 }).done(() => {
                     events.removeListener('worker:shutdown', shutdown);

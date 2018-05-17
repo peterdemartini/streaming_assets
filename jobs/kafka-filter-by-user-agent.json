@@ -1,0 +1,38 @@
+{
+    "name": "Filter Data by User Agent from Kafka",
+    "lifecycle": "persistent",
+    "workers": 1,
+    "assets": [
+        "streaming"
+    ],
+    "operations": [
+        {
+            "_op": "kafka_stream_reader",
+            "topic": "kafka-filter",
+            "connection": "default",
+            "group": "kafka-filter-1",
+            "size": 1000
+        },
+        {
+            "_op": "filter",
+            "function": "startsWith",
+            "args": {
+                "chance": 100
+            }
+        },
+        {
+            "_op": "map",
+            "function": "set",
+            "args": {
+                "path": "randomResult",
+                "value": true
+            }
+        },
+        {
+            "_op": "to_array"
+        },
+        {
+            "_op": "stdout"
+        }
+    ]
+}

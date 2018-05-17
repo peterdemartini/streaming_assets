@@ -1,5 +1,5 @@
 {
-    "name": "ETL From Kafka to Kafka",
+    "name": "New ETL From Kafka to Kafka",
     "lifecycle": "persistent",
     "workers": 1,
     "assets": [
@@ -8,28 +8,32 @@
     "operations": [
         {
             "_op": "kafka_stream_reader",
-            "topic": "kafka-etl",
+            "topic": "fixed-data-set",
             "connection": "default",
-            "group": "kafka-etl-1",
-            "size": 1000
+            "group": "new-kafka-etl-1",
+            "size": 10000
         },
         {
             "_op": "map",
             "function": "setDate",
             "args": {
-                "path": ["discoveredAt"],
+                "path": [
+                    "processedAt"
+                ],
                 "timeFn": "now"
             }
         },
         {
             "_op": "kafka_stream_sender",
-            "topic": "kafka-filter",
-            "size": 1000
+            "topic": "new-kafka-done",
+            "timestamp_field": "created",
+            "id_field": "uuid",
+            "size": 10000
         }
     ],
     "tjm": {
         "cluster": "http://localhost:5678",
         "version": "0.0.1",
-        "job_id": "017a2175-f601-4706-ace6-78e94b9eaa21"
+        "job_id": "f557d9ba-27c5-41cb-8b59-778e45306ed1"
     }
 }

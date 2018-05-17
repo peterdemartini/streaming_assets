@@ -8,28 +8,31 @@ const _ = require('lodash');
  */
 function newProcessor(context, opConfig) {
     return function processor(stream) {
-        if (!H.isStream(stream)) {
-            return stream;
-        }
         const args = opConfig.args;
         const fn = opConfig.function;
         const functions = {
-            set: (record) => {
-                _.set(record.data, args.path, args.value);
-                return record;
+            set: (data) => {
+                _.set(data, args.path, args.value);
+                return data;
             },
-            setDate: (record) => {
+            setDate: (data) => {
                 const timeFunctions = {
                     now: () => Date.now()
                 };
-                _.set(record.data, args.path, timeFunctions[args.timeFn]());
-                return record;
+                _.set(data, args.path, timeFunctions[args.timeFn]());
+                return data;
             }
         };
         if (!_.isFunction(functions[fn])) {
             return Promise.reject(new Error('Not a valid map function'));
         }
-        return stream.map(functions[fn]);
+        if (H.isStream(stream)) {
+            return stream.map((record) => {
+                record.data = functions[fn](record.data);
+                return record;
+            });
+        }
+        return _.map(functions[fn]);
     };
 }
 

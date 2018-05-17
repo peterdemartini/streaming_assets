@@ -1,0 +1,26 @@
+{
+    "name": "Once Data generation job",
+    "lifecycle": "once",
+    "workers": 1,
+    "assets": [
+        "streaming"
+    ],
+    "operations": [
+        {
+            "_op": "elasticsearch_data_generator",
+            "size": 1000000
+        },
+        {
+            "_op": "teraslice_kafka_sender",
+            "topic": "fixed-data-set",
+            "timestamp_field": "created",
+            "id_field": "uuid",
+            "connection": "default"
+        }
+    ],
+    "tjm": {
+        "cluster": "http://localhost:5678",
+        "version": "0.0.1",
+        "job_id": "420d24c1-63af-4a70-b674-22657362fcf7"
+    }
+}
