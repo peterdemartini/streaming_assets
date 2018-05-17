@@ -8,7 +8,7 @@
     "operations": [
         {
             "_op": "elasticsearch_data_generator",
-            "size": 500
+            "size": 5000
         },
         {
             "_op": "wait",

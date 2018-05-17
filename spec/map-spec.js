@@ -28,7 +28,8 @@ describe('map', () => {
                 }
             };
 
-            const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
+            const newEntity = record => new StreamEntity(_.cloneDeep(record));
+            const streamRecords = _.map(inputRecords, newEntity);
             const results = harness.run(H(streamRecords), opConfig);
 
             results.toArray((values) => {
@@ -54,7 +55,8 @@ describe('map', () => {
                 }
             };
             const startRange = Date.now() - 1;
-            const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
+            const newEntity = record => new StreamEntity(_.cloneDeep(record));
+            const streamRecords = _.map(inputRecords, newEntity);
             const results = harness.run(H(streamRecords), opConfig);
 
             results.toArray((values) => {
@@ -72,6 +74,60 @@ describe('map', () => {
                 expect(_.inRange(values[3].data.processedAt, startRange, endRange)).toBeTruthy();
             });
         });
+        it('should be JSON parsable', () => {
+            const opConfig = {
+                function: 'JSONParse'
+            };
+            const newEntity = record => new StreamEntity(JSON.stringify(record));
+            const streamRecords = _.map(inputRecords, newEntity);
+            const results = harness.run(H(streamRecords), opConfig);
+
+            results.toArray((values) => {
+                expect(values.length).toEqual(4);
+
+                expect(values[0] instanceof StreamEntity).toBeTruthy();
+                expect(values[0].data.host).toEqual('example.com');
+                expect(values[1].data.host).toEqual('www.example.com');
+                expect(values[2].data.host).toEqual('example.co.uk');
+                expect(values[3].data.host).toEqual('www.example.co.uk');
+            });
+        });
+        it('should be JSON parsable with it is buffer', () => {
+            const opConfig = {
+                function: 'JSONParse'
+            };
+            const newEntity = record => new StreamEntity(Buffer.from(JSON.stringify(record)));
+            const streamRecords = _.map(inputRecords, newEntity);
+            const results = harness.run(H(streamRecords), opConfig);
+
+            results.toArray((values) => {
+                expect(values.length).toEqual(4);
+
+                expect(values[0] instanceof StreamEntity).toBeTruthy();
+                expect(values[0].data.host).toEqual('example.com');
+                expect(values[1].data.host).toEqual('www.example.com');
+                expect(values[2].data.host).toEqual('example.co.uk');
+                expect(values[3].data.host).toEqual('www.example.co.uk');
+            });
+        });
+        it('should be JSON stringifyable', () => {
+            const opConfig = {
+                function: 'JSONStringify'
+            };
+            const newEntity = record => new StreamEntity(_.cloneDeep(record));
+            const streamRecords = _.map(inputRecords, newEntity);
+            const results = harness.run(H(streamRecords), opConfig);
+
+            results.toArray((values) => {
+                expect(values.length).toEqual(4);
+
+                expect(values[0] instanceof StreamEntity).toBeTruthy();
+                expect(typeof values[0].data).toEqual('string');
+                expect(typeof values[1].data).toEqual('string');
+                expect(typeof values[2].data).toEqual('string');
+                expect(typeof values[3].data).toEqual('string');
+            });
+        });
     });
     describe('when a array is given', () => {
         it('should map add processed to each record', () => {
@@ -83,21 +139,19 @@ describe('map', () => {
                 }
             };
 
-            const results = harness.run(_.cloneDeep(inputRecords), opConfig);
+            const values = harness.run(_.cloneDeep(inputRecords), opConfig);
 
-            results.forEach((values) => {
-                expect(values.length).toEqual(4);
+            expect(values.length).toEqual(4);
 
-                expect(values[0] instanceof StreamEntity).toBeFalsy();
-                expect(values[0].host).toEqual('example.com');
-                expect(values[1].host).toEqual('www.example.com');
-                expect(values[2].host).toEqual('example.co.uk');
-                expect(values[3].host).toEqual('www.example.co.uk');
-                expect(values[0].processed).toBeTruthy();
-                expect(values[1].processed).toBeTruthy();
-                expect(values[2].processed).toBeTruthy();
-                expect(values[3].processed).toBeTruthy();
-            });
+            expect(values[0] instanceof StreamEntity).toBeFalsy();
+            expect(values[0].host).toEqual('example.com');
+            expect(values[1].host).toEqual('www.example.com');
+            expect(values[2].host).toEqual('example.co.uk');
+            expect(values[3].host).toEqual('www.example.co.uk');
+            expect(values[0].processed).toBeTruthy();
+            expect(values[1].processed).toBeTruthy();
+            expect(values[2].processed).toBeTruthy();
+            expect(values[3].processed).toBeTruthy();
         });
         it('should add a new date on processedAt', () => {
             const opConfig = {
@@ -108,22 +162,64 @@ describe('map', () => {
                 }
             };
             const startRange = Date.now() - 1;
-            const results = harness.run(_.cloneDeep(inputRecords), opConfig);
+            const values = harness.run(_.cloneDeep(inputRecords), opConfig);
 
-            results.forEach((values) => {
-                expect(values.length).toEqual(4);
+            expect(values.length).toEqual(4);
 
-                expect(values[0] instanceof StreamEntity).toBeFalsy();
-                expect(values[0].host).toEqual('example.com');
-                expect(values[1].host).toEqual('www.example.com');
-                expect(values[2].host).toEqual('example.co.uk');
-                expect(values[3].host).toEqual('www.example.co.uk');
-                const endRange = Date.now() + 1;
-                expect(_.inRange(values[0].processedAt, startRange, endRange)).toBeTruthy();
-                expect(_.inRange(values[1].processedAt, startRange, endRange)).toBeTruthy();
-                expect(_.inRange(values[2].processedAt, startRange, endRange)).toBeTruthy();
-                expect(_.inRange(values[3].processedAt, startRange, endRange)).toBeTruthy();
-            });
+            expect(values[0] instanceof StreamEntity).toBeFalsy();
+            expect(values[0].host).toEqual('example.com');
+            expect(values[1].host).toEqual('www.example.com');
+            expect(values[2].host).toEqual('example.co.uk');
+            expect(values[3].host).toEqual('www.example.co.uk');
+            const endRange = Date.now() + 1;
+            expect(_.inRange(values[0].processedAt, startRange, endRange)).toBeTruthy();
+            expect(_.inRange(values[1].processedAt, startRange, endRange)).toBeTruthy();
+            expect(_.inRange(values[2].processedAt, startRange, endRange)).toBeTruthy();
+            expect(_.inRange(values[3].processedAt, startRange, endRange)).toBeTruthy();
+        });
+        it('should be JSON parsable', () => {
+            const opConfig = {
+                function: 'JSONParse'
+            };
+            const records = _.map(inputRecords, record => JSON.stringify(record));
+            const values = harness.run(records, opConfig);
+
+            expect(values.length).toEqual(4);
+
+            expect(values[0] instanceof StreamEntity).toBeFalsy();
+            expect(values[0].host).toEqual('example.com');
+            expect(values[1].host).toEqual('www.example.com');
+            expect(values[2].host).toEqual('example.co.uk');
+            expect(values[3].host).toEqual('www.example.co.uk');
+        });
+        it('should be JSON parsable with it is buffer', () => {
+            const opConfig = {
+                function: 'JSONParse'
+            };
+            const records = _.map(inputRecords, record => Buffer.from(JSON.stringify(record)));
+            const values = harness.run(records, opConfig);
+
+            expect(values.length).toEqual(4);
+
+            expect(values[0] instanceof StreamEntity).toBeFalsy();
+            expect(values[0].host).toEqual('example.com');
+            expect(values[1].host).toEqual('www.example.com');
+            expect(values[2].host).toEqual('example.co.uk');
+            expect(values[3].host).toEqual('www.example.co.uk');
+        });
+        it('should be JSON stringifyable', () => {
+            const opConfig = {
+                function: 'JSONStringify'
+            };
+            const values = harness.run(_.cloneDeep(inputRecords), opConfig);
+
+            expect(values.length).toEqual(4);
+
+            expect(values[0] instanceof StreamEntity).toBeFalsy();
+            expect(typeof values[0]).toEqual('string');
+            expect(typeof values[1]).toEqual('string');
+            expect(typeof values[2]).toEqual('string');
+            expect(typeof values[3]).toEqual('string');
         });
     });
 });

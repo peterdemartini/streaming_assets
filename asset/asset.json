@@ -1,6 +1,6 @@
 {
     "name": "streaming",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "description": "Prototype stream processing operators",
     "tjm": {
         "cluster": "http://localhost:5678"

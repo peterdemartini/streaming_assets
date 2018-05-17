@@ -10,8 +10,12 @@
             "_op": "kafka_stream_reader",
             "topic": "fixed-data-set",
             "connection": "default",
-            "group": "new-kafka-etl-1",
-            "size": 10000
+            "output_format": "raw",
+            "group": "new-kafka-etl"
+        },
+        {
+            "_op": "map",
+            "function": "JSONParse"
         },
         {
             "_op": "map",
@@ -28,7 +32,7 @@
             "topic": "new-kafka-done",
             "timestamp_field": "created",
             "id_field": "uuid",
-            "size": 10000
+            "connection": "default"
         }
     ],
     "tjm": {

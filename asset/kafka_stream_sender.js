@@ -126,6 +126,21 @@ function schema() {
             default: '',
             format: 'required_String'
         },
+        id_field: {
+            doc: 'Field in the incoming record that contains keys',
+            default: '',
+            format: String
+        },
+        timestamp_field: {
+            doc: 'Field in the incoming record that contains a timestamp to set on the record',
+            default: '',
+            format: String
+        },
+        timestamp_now: {
+            doc: 'Set to true to have a timestamp generated as records are added to the topic',
+            default: '',
+            format: String
+        },
         connection: {
             doc: 'The Kafka producer connection to use.',
             default: 'default',

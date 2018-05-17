@@ -4,16 +4,38 @@ const H = require('highland');
 const _ = require('lodash');
 
 /*
- * Exposes the Highland mapp operator as an operator.
+ * Exposes the Highland map processor
  */
 function newProcessor(context, opConfig) {
-    return function processor(stream) {
+    return function processor(stream, sliceLogger) {
         const args = opConfig.args;
         const fn = opConfig.function;
         const functions = {
             set: (data) => {
                 _.set(data, args.path, args.value);
                 return data;
+            },
+            JSONStringify: (input) => {
+                const data = _.isBuffer(input) ? input.toString() : input;
+                try {
+                    return JSON.stringify(data);
+                } catch (err) {
+                    sliceLogger.warn('json stringify error', err);
+                    return data;
+                }
+            },
+            JSONParse: (input) => {
+                const data = _.isBuffer(input) ? input.toString() : input;
+                if (!_.isString(data)) {
+                    sliceLogger.warn('data is not a JSON parseable');
+                    return data;
+                }
+                try {
+                    return JSON.parse(data);
+                } catch (err) {
+                    sliceLogger.warn('json parse error', err);
+                    return data;
+                }
             },
             setDate: (data) => {
                 const timeFunctions = {
@@ -32,7 +54,7 @@ function newProcessor(context, opConfig) {
                 return record;
             });
         }
-        return _.map(functions[fn]);
+        return _.map(stream, functions[fn]);
     };
 }
 

@@ -7,11 +7,14 @@
     ],
     "operations": [
         {
-            "_op": "teraslic_kafka_reader",
+            "_op": "teraslice_kafka_reader",
             "topic": "fixed-data-set",
             "connection": "default",
-            "group": "old-kafka-etl-1",
-            "size": 10000
+            "group": "old-kafka-etl"
+        },
+        {
+            "_op": "map",
+            "function": "JSONParse"
         },
         {
             "_op": "map",
@@ -28,7 +31,12 @@
             "topic": "old-kafka-done",
             "timestamp_field": "created",
             "id_field": "uuid",
-            "size": 10000
+            "connection": "default"
         }
-    ]
+    ],
+    "tjm": {
+        "cluster": "http://localhost:5678",
+        "version": "0.0.1",
+        "job_id": "d5fad062-db19-4507-ade8-bac8e5dfbe87"
+    }
 }

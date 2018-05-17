@@ -10,8 +10,7 @@
             "_op": "kafka_stream_reader",
             "topic": "kafka-filter",
             "connection": "default",
-            "group": "kafka-filter-1",
-            "size": 1000
+            "group": "kafka-filter-by-user-agent"
         },
         {
             "_op": "filter",
