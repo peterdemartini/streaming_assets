@@ -29,7 +29,7 @@
         },
         {
             "_op": "kafka_stream_sender",
-            "topic": "new-kafka-done",
+            "topic": "new-kafka-etl",
             "timestamp_field": "created",
             "id_field": "uuid",
             "connection": "default"

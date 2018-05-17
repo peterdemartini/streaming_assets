@@ -1,0 +1,8 @@
+[2018-05-17 15:00:17,809] ERROR Error processing message, terminating consumer process:  (kafka.tools.ConsoleConsumer$)
+kafka.consumer.ConsumerTimeoutException
+	at kafka.consumer.NewShinyConsumer.receive(BaseConsumer.scala:98)
+	at kafka.tools.ConsoleConsumer$.process(ConsoleConsumer.scala:129)
+	at kafka.tools.ConsoleConsumer$.run(ConsoleConsumer.scala:84)
+	at kafka.tools.ConsoleConsumer$.main(ConsoleConsumer.scala:54)
+	at kafka.tools.ConsoleConsumer.main(ConsoleConsumer.scala)
+Processed a total of 0 messages

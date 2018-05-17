@@ -28,7 +28,7 @@
         },
         {
             "_op": "teraslice_kafka_sender",
-            "topic": "old-kafka-done",
+            "topic": "old-kafka-etl",
             "timestamp_field": "created",
             "id_field": "uuid",
             "connection": "default"

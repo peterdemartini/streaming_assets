@@ -8,6 +8,7 @@ function newProcessor(context, opConfig) {
     const jobLogger = context.logger;
     const events = context.foundation.getEventEmitter();
     const bufferSize = 5 * opConfig.size;
+    let currentBufferSize = 0;
     const producer = context.foundation.getConnection({
         type: 'kafka',
         endpoint: opConfig.connection,
@@ -24,12 +25,23 @@ function newProcessor(context, opConfig) {
             'log.connection.close': false
         }
     }).client;
+    const shouldFlush = () => {
+        if (currentBufferSize > bufferSize) {
+            return true;
+        }
+        // better to be save than sorry
+        const upper = bufferSize + (opConfig.size / 2);
+        const lower = bufferSize - (opConfig.size / 2);
+        return _.inRange(currentBufferSize, lower, upper);
+    };
     const flush = (callback) => {
         producer.flush(60000, (err) => {
             if (err != null) {
                 jobLogger.error(err);
                 callback(err);
+                return;
             }
+            currentBufferSize = 0;
             callback();
         });
     };
@@ -67,7 +79,6 @@ function newProcessor(context, opConfig) {
         }
         return date.getTime();
     };
-
     return function processor(stream, sliceLogger) {
         return connect().then(() => new Promise((resolve, reject) => {
             let shuttingDown = false;
@@ -110,10 +121,15 @@ function newProcessor(context, opConfig) {
                         sliceLogger.info('kafka_stream_sender slice finished but waiting to producer to be flushed before shutting down');
                         return;
                     }
+                    currentBufferSize += _.size(results);
                     sliceLogger.info('kafka_stream_sender finished batch', _.size(results));
-                    flush(() => {
+                    if (shouldFlush()) {
+                        flush(() => {
+                            resolve(H(results));
+                        });
+                    } else {
                         resolve(H(results));
-                    });
+                    }
                 });
         }));
     };

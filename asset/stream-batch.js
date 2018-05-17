@@ -14,8 +14,6 @@ function StreamBatch(client, onFinish) {
         }
         onFinish();
     };
-    client.on('unsubscribed', finish);
-    client.on('disconnected', finish);
     this.takeNext = (batchSize, fn, logger) => {
         if (!_.isNumber(batchSize)) {
             throw new Error('Incorrect batch size');
