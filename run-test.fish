@@ -1,3 +1,5 @@
+#!/usr/bin/env fish
+
 set jobs_folder "./jobs"
 set total_messages 1000000
 
@@ -29,6 +31,7 @@ function test_kafka_etl
         echo "Missing first, should be either old or new"
         exit 1
     end
+    trap exit SIGINT
     set -l job_name "$argv[1]-kafka-etl"
     echo "* stopping old-kafka-etl job"
     _tjm stop $jobs_folder/old-kafka-etl.json
@@ -66,7 +69,8 @@ function test_kafka_etl
         --topic "fixed-data-set" \
         --reset-offsets \
         --group "$job_name" \
-        --to-earliest 2> /dev/null; or exit 1
+        --to-earliest \
+        --execute 2> /dev/null; or exit 1
     echo "* starting test - "(date)
     _tjm start "jobs/$job_name.json"
     set -l start_time (gdate +%s)
