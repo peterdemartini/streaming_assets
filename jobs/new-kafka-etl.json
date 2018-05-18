@@ -12,7 +12,7 @@
             "connection": "default",
             "output_format": "raw",
             "group": "new-kafka-etl",
-            "size": 100000
+            "size": 500000
         },
         {
             "_op": "map",
@@ -34,7 +34,7 @@
             "timestamp_field": "created",
             "id_field": "uuid",
             "connection": "default",
-            "size": 100000
+            "size": 500000
         }
     ],
     "tjm": {

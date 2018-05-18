@@ -42,7 +42,13 @@ function ensure_clean_slate
     tjm stop $jobs_folder/once-data-generator-stream.json > /dev/null; or exit 1
     tjm stop $jobs_folder/old-kafka-etl.json > /dev/null; or exit 1
     tjm stop $jobs_folder/new-kafka-etl.json > /dev/null; or exit 1
-    rm ./*-kafka-etl.log
+    if test -f ./new-kafka-etl.log;
+        rm ./new-kafka-etl.log
+    end
+    if test -f ./old-kafka-etl.log;
+        rm ./old-kafka-etl.log
+    end
+
     _reset_dataset
     _reset_kafka_for_job "old-kafka-etl"
     _reset_kafka_for_job "new-kafka-etl"
