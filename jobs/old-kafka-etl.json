@@ -10,7 +10,8 @@
             "_op": "teraslice_kafka_reader",
             "topic": "fixed-data-set",
             "connection": "default",
-            "group": "old-kafka-etl"
+            "group": "old-kafka-etl",
+            "size": 100000
         },
         {
             "_op": "map",
@@ -31,7 +32,8 @@
             "topic": "old-kafka-etl",
             "timestamp_field": "created",
             "id_field": "uuid",
-            "connection": "default"
+            "connection": "default",
+            "size": 100000
         }
     ],
     "tjm": {
