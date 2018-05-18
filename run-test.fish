@@ -5,18 +5,14 @@ set data_set "fixed-data-set"
 set job_name "$argv[1]-kafka-etl"
 set total_messages 10000000
 
-function _tjm
-    tjm $argv > /dev/null 2>&1 | grep -v 'ExperimentalWarning';
-end
-
 function _setup_dataset
     if kafka-topics --list --zookeeper localhost:2181 | grep "$data_set" > /dev/null;
-        echo "[*] deleting $data_set topic"
+        echo "[*] deleting topic $data_set"
         kafka-topics --zookeeper localhost:2181 \
             --delete \
             --topic "$data_set" > /dev/null 2> /dev/null; or exit 1
     end
-    _tjm start $jobs_folder/once-data-generator-stream.json
+    tjm start $jobs_folder/once-data-generator-stream.json > /dev/null; or exit 1
     echo "[*] loading data into kafka"
 end
 
@@ -52,29 +48,37 @@ function test_kafka_etl
     function gracefulExit --on-signal INT --on-signal TERM
         functions -e gracefulExit
         echo "[X] Cancelled"
-        tjm stop $jobs_folder/$job_name.json 2> /dev/null > /dev/null
-        tjm stop $jobs_folder/once-data-generator-stream.json 2> /dev/null > /dev/null
+        tjm stop $jobs_folder/$job_name.json > /dev/null
+        tjm stop $jobs_folder/once-data-generator-stream.json > /dev/null
         kill %self
     end
     echo "[*] ensure jobs are stopped before starting"
-    _tjm stop $jobs_folder/old-kafka-etl.json
-    _tjm stop $jobs_folder/new-kafka-etl.json
+    tjm stop $jobs_folder/old-kafka-etl.json > /dev/null; or exit 1
+    tjm stop $jobs_folder/new-kafka-etl.json > /dev/null; or exit 1
     _reset_kafka_for_job
     _setup_dataset
     echo "[+] Starting $job_name -- "(date)
-    _tjm start "jobs/$job_name.json"
+    tjm start "jobs/$job_name.json" > /dev/null; or exit 1
     set -l start_time (gdate +%s)
-    kafka-console-consumer \
-        --bootstrap-server localhost:9092 \
-        --topic "$job_name" \
-        --from-beginning \
-        --timeout-ms 3600000 \
-        --max-messages=$total_messages > /dev/null
-    set -l result (math (gdate +%s) - $start_time)
+    set -l checked 0
+    set -l result 0
+    while test "$result" != "$total_messages";
+        set -l result (kafka-run-class kafka.tools.GetOffsetShell \
+            --broker-list localhost:9092 \
+            --topic "$job_name" --time -1 --offsets 1 | \
+            awk -F ":" '{sum += $3} END {print sum}')
+        set -l elapsed_time (math (gdate +%s) - $start_time)
+        set -l checked (math $checked + 1)
+        if test $checked -ge 10;
+            echo "[*] processed $result records @ $elapsed_time seconds"
+            set -l checked 0
+        end
+        sleep 1;
+    end
     echo "[√] Done! test took $result seconds -- "(date)
     functions -e gracefulExit
-    tjm stop $jobs_folder/$job_name.json 2> /dev/null > /dev/null
-    tjm stop $jobs_folder/once-data-generator-stream.json 2> /dev/null > /dev/null
+    tjm stop $jobs_folder/$job_name.json > /dev/null
+    tjm stop $jobs_folder/once-data-generator-stream.json > /dev/null
 end
 
 test_kafka_etl "$job_name"
