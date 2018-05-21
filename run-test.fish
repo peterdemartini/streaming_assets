@@ -49,8 +49,9 @@ function test_kafka_etl
     end
     set -l reader_batch_size (jq -r '.operations[0].size' "$job_file")
     set -l sender_batch_size (jq -r '.operations[-1].size' "$job_file")
-    echo "[*] $job_name completed $result of $available_count"
-    echo "[*] $job_name reader batch size is $reader_batch_size, sender batch size is $sender_batch_size"
+    echo "[√] $job_name completed $result of $available_count records"
+    echo "[√] $job_name reader batch size is $reader_batch_size"
+    echo "[√] $job_name sender batch size is $sender_batch_size"
     echo "[√] $job_name done in $elapsed_time seconds"
     noti --title "$job_name done!" --message "test took $elapsed_time seconds"
     functions -e gracefulExit
