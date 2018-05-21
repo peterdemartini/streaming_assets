@@ -155,7 +155,7 @@ function newProcessor(context, opConfig) {
                             );
                         if (produceErr != null && produceErr !== true) {
                             sliceLogger.warn('kafka_stream_sender producer queue is full', produceErr);
-                            _.delay(produce, _.random(0, 500));
+                            _.delay(produce, _.random(0, 100));
                             return;
                         }
                         currentBufferSize += 1;

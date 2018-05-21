@@ -77,6 +77,7 @@ function newReader(context, opConfig) {
         });
     });
     events.on('slice:success', () => {
+        if (shuttingDown) return;
         try {
             // Ideally we'd use commitSync here but it seems to throw
             // an exception everytime it's called.
@@ -100,7 +101,11 @@ function newReader(context, opConfig) {
         startingOffsets = {};
         endingOffsets = {};
     });
-    const connectToConsumer = () => new Promise((resolve) => {
+    const connectToConsumer = () => new Promise((resolve, reject) => {
+        if (shuttingDown) {
+            reject(new Error('Processor shutting down'));
+            return;
+        }
         if (consumer.isConnected()) {
             resolve();
             return;
