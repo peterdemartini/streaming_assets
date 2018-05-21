@@ -22,8 +22,6 @@ main() {
     echo "[*] starting new test in background..."
     ./run-test.fish new > ./new-kafka-etl.log &
     new_pid="$!"
-    tail -f new-kafka-etl.log &
-    tail -f old-kafka-etl.log &
     while sleep 1; do
         local old_done new_done
         ps -p "$old_pid" 2> /dev/null > /dev/null
