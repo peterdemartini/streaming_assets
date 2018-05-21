@@ -34,18 +34,44 @@ function newReader(context, opConfig) {
             'queued.min.messages': 2 * batchSize
         }
     }).client;
+    const commit = Promise.promisify(consumer.commit, { context: consumer });
+    const seek = Promise.promisify(consumer.seek, { context: consumer });
 
     const streamBatch = new StreamBatch(consumer, () => {
         jobLogger.info('kafka_stream_reader finished batch');
     });
 
+    let committing = false;
+    let retrying = false;
     let shuttingDown = false;
+    const waitForCommit = (callback) => {
+        const check = () => {
+            if (committing) {
+                _.delay(check, 100);
+                return;
+            }
+            callback();
+        };
+        check();
+    };
+    const waitForRetry = (callback) => {
+        const check = () => {
+            if (retrying) {
+                _.delay(check, 100);
+                return;
+            }
+            callback();
+        };
+        check();
+    };
     events.on('worker:shutdown', () => {
         shuttingDown = true;
-        streamBatch.end();
-        consumer.unsubscribe();
-        consumer.disconnect(() => {
-            jobLogger.info('kafka_stream_reader consumer disconnected');
+        waitForCommit(() => {
+            streamBatch.end();
+            consumer.unsubscribe();
+            consumer.disconnect(() => {
+                jobLogger.info('kafka_stream_reader consumer disconnected');
+            });
         });
     });
     consumer.on('event.error', (err) => {
@@ -61,45 +87,51 @@ function newReader(context, opConfig) {
         if (_.isEmpty(rollbackOffsets)) {
             return;
         }
+        retrying = true;
         streamBatch.end();
-        _.forOwn(rollbackOffsets, (offset, partition) => {
-            consumer.seek({
+        const rollbacks = _.map(rollbackOffsets, (offset, partition) => {
+            jobLogger.debug('consumer seek', { partition, offset });
+            return seek({
                 partition: parseInt(partition, 10),
                 offset,
                 topic: opConfig.topic
-            }, 1000, (err) => {
-                if (err) {
-                    jobLogger.error(err);
-                    return;
-                }
-                jobLogger.debug('consumer seek', { partition, offset });
             });
+        });
+        Promise.all(rollbacks).then(() => {
+            retrying = false;
+            startingOffsets = {};
+            endingOffsets = {};
+        }).catch((err) => {
+            retrying = false;
+            if (err) {
+                jobLogger.error(err);
+            }
         });
     });
     events.on('slice:success', () => {
-        if (shuttingDown) return;
-        try {
-            // Ideally we'd use commitSync here but it seems to throw
-            // an exception everytime it's called.
-            _.forOwn(pendingOffsets, (offset, partition) => {
-                consumer.commitSync({
-                    partition: parseInt(partition, 10),
-                    offset,
-                    topic: opConfig.topic
-                });
-            });
-        } catch (err) {
+        committing = true;
+        const commits = _.map(pendingOffsets, (offset, partition) => commit({
+            partition: parseInt(partition, 10),
+            offset,
+            topic: opConfig.topic
+        }));
+        Promise.all(commits).catch((err) => {
             // If this is the first slice and the slice is Empty
             // there may be no offsets stored which is not really
             // an error.
             if (err.code !== KAFKA_NO_OFFSET_STORED) {
                 jobLogger.error(`Kafka reader error after slice resolution ${err}`);
+                return Promise.resolve();
             }
-        }
-        pendingOffsets = endingOffsets;
-        rollbackOffsets = startingOffsets;
-        startingOffsets = {};
-        endingOffsets = {};
+            committing = false;
+            return Promise.reject(err);
+        }).then(() => {
+            committing = false;
+            pendingOffsets = endingOffsets;
+            rollbackOffsets = startingOffsets;
+            startingOffsets = {};
+            endingOffsets = {};
+        });
     });
     const connectToConsumer = () => new Promise((resolve, reject) => {
         if (shuttingDown) {
@@ -107,7 +139,9 @@ function newReader(context, opConfig) {
             return;
         }
         if (consumer.isConnected()) {
-            resolve();
+            waitForRetry(() => {
+                resolve();
+            });
             return;
         }
         consumer.connect();

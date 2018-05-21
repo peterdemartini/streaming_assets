@@ -43,8 +43,20 @@ main() {
     get_mem_metrics "old"
     get_cpu_metrics "new"
     get_cpu_metrics "old"
-    cat ./new-kafka-etl.log | tail -n 1
-    cat ./old-kafka-etl.log | tail -n 1
+    local new_results=()
+    local old_results=()
+    while read -r line; do
+        new_results+=("$line")
+    done < <(tail -n 3 ./new-kafka-etl.log)
+    while read -r line; do
+        old_results+=("$line")
+    done < <(tail -n 3 ./old-kafka-etl.log)
+    echo "${new_results[0]}"
+    echo "${old_results[0]}"
+    echo "${new_results[1]}"
+    echo "${old_results[1]}"
+    echo "${new_results[2]}"
+    echo "${old_results[2]}"
 }
 
 main "$@"

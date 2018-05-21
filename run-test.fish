@@ -46,6 +46,10 @@ function test_kafka_etl
         echo "[*] $job_name processed: $result, available: $available_count, expected: $expected_count @ $elapsed_time seconds"
         sleep 1;
     end
+    set -l reader_batch_size (jq -r '.operations[0].size' "$job_file")
+    set -l sender_batch_size (jq -r '.operations[-1].size' "$job_file")
+    echo "[*] $job_name $result of $available_count"
+    echo "[*] $job_name reader batch size: $reader_batch_size; sender batch size: $sender_batch_size"
     echo "[√] $job_name done! test took $elapsed_time seconds"
     noti --title "$job_name done!" --message "test took $elapsed_time seconds"
     functions -e gracefulExit
