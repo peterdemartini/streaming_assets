@@ -42,23 +42,11 @@ function ensure_clean_slate
     tjm stop $jobs_folder/once-data-generator-stream.json > /dev/null; or exit 1
     tjm stop $jobs_folder/old-kafka-etl.json > /dev/null; or exit 1
     tjm stop $jobs_folder/new-kafka-etl.json > /dev/null; or exit 1
-    if test -f ./new-kafka-etl.log;
-        rm ./new-kafka-etl.log
-    end
-    if test -f ./new-kafka-mem.log;
-        rm ./new-kafka-mem.log
-    end
-    if test -f ./new-kafka-cpu.log;
-        rm ./new-kafka-cpu.log
-    end
-    if test -f ./old-kafka-etl.log;
-        rm ./old-kafka-etl.log
-    end
-    if test -f ./old-kafka-mem.log;
-        rm ./old-kafka-mem.log
-    end
-    if test -f ./old-kafka-cpu.log;
-        rm ./old-kafka-cpu.log
+    for file in (ls *-kafka-*.log)
+        if test -f "./$file"
+            rm "./$file"
+            touch "./$file"
+        end
     end
 
     _reset_dataset
