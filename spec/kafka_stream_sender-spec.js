@@ -4,7 +4,6 @@
 
 const processor = require('../asset/kafka_stream_sender');
 const harness = require('teraslice_op_test_harness')(processor);
-const Writable = require('stream').Writable;
 const _ = require('lodash');
 
 const StreamEntity = require('../asset/StreamEntity');
@@ -21,7 +20,8 @@ const inputRecords = [
 
 const opConfig = {
     topic: 'testing',
-    size: 500
+    size: 500,
+    continue_stream: true
 };
 
 describe('kafka_stream_sender', () => {
@@ -35,7 +35,9 @@ describe('kafka_stream_sender', () => {
                     isConnected() { return true; },
                     state: 0,
                     // Produce is called once for every record.
-                    produce() { this.state += 1; },
+                    produce() {
+                        this.state += 1;
+                    },
                     flush(timeout, cb) {
                     // Flush should be called on opConfig.size boundaries
                         expect(this.state % opConfig.size === 0).toBe(true);
@@ -54,7 +56,7 @@ describe('kafka_stream_sender', () => {
             stream.end();
         });
 
-        harness.run(stream, opConfig)
+        return harness.run(stream, opConfig)
             .then((resultStream) => {
                 resultStream.toArray((results) => {
                     expect(results.length).toEqual(opConfig.size);

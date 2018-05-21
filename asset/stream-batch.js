@@ -46,7 +46,9 @@ function StreamBatch(client, onFinish) {
                     }
                     logger.debug(`stream_batch: got messages ${_.size(messages)}`);
                     _.forEach(messages, (message) => {
-                        push(null, fn(message));
+                        setImmediate(() => {
+                            push(null, fn(message));
+                        });
                     });
                     pullNext(remaining - _.size(messages));
                 });

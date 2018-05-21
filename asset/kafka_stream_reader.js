@@ -39,7 +39,9 @@ function newReader(context, opConfig) {
         jobLogger.info('kafka_stream_reader finished batch');
     });
 
+    let shuttingDown = false;
     events.on('worker:shutdown', () => {
+        shuttingDown = true;
         streamBatch.end();
         consumer.unsubscribe();
         consumer.disconnect(() => {
@@ -47,12 +49,15 @@ function newReader(context, opConfig) {
         });
     });
     consumer.on('event.error', (err) => {
+        if (shuttingDown) return;
         jobLogger.error(err);
     });
     consumer.on('event.log', (event) => {
+        if (shuttingDown) return;
         jobLogger.info(event);
     });
     events.on('slice:retry', () => {
+        if (shuttingDown) return;
         if (_.isEmpty(rollbackOffsets)) {
             return;
         }
@@ -95,16 +100,14 @@ function newReader(context, opConfig) {
         startingOffsets = {};
         endingOffsets = {};
     });
-    const connectToConsumer = () => new Promise((resolve, reject) => {
+    const connectToConsumer = () => new Promise((resolve) => {
         if (consumer.isConnected()) {
             resolve();
             return;
         }
-        consumer.connect({}, (err) => {
-            if (err) {
-                reject(err);
-                return;
-            }
+        consumer.connect();
+        consumer.on('ready', () => {
+            consumer.setDefaultConsumeTimeout(100);
             consumer.subscribe([opConfig.topic]);
             resolve();
         });

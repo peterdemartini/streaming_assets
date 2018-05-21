@@ -22,9 +22,18 @@ function newProcessor(context, opConfig) {
             'queue.buffering.max.ms': opConfig.wait,
             'batch.num.messages': opConfig.size,
             'topic.metadata.refresh.interval.ms': opConfig.metadata_refresh,
-            'log.connection.close': false
+            'log.connection.close': false,
+            dr_cb: true
         }
     }).client;
+
+    producer.on('delivery-report', (err) => {
+        if (err) {
+            jobLogger.error('delivery report error', err);
+            return;
+        }
+        currentBufferSize -= 1;
+    });
     const shouldFlush = () => {
         if (currentBufferSize > bufferSize) {
             return true;
@@ -35,6 +44,10 @@ function newProcessor(context, opConfig) {
         return _.inRange(currentBufferSize, lower, upper);
     };
     const flush = (callback) => {
+        if (currentBufferSize === 0) {
+            callback();
+            return;
+        }
         producer.flush(60000, (err) => {
             if (err != null) {
                 jobLogger.error(err);
@@ -45,19 +58,23 @@ function newProcessor(context, opConfig) {
             callback();
         });
     };
+    const flushIfNeeded = (callback) => {
+        if (shouldFlush()) {
+            flush(callback);
+            return;
+        }
+        callback();
+    };
     producer.on('event.error', (err) => {
         jobLogger.error(err);
     });
-    const connect = () => new Promise((resolve, reject) => {
+    const connect = () => new Promise((resolve) => {
         if (producer.isConnected()) {
             resolve();
             return;
         }
-        producer.connect({}, (err) => {
-            if (err) {
-                reject(err);
-                return;
-            }
+        producer.connect();
+        producer.once('ready', () => {
             resolve();
         });
     });
@@ -85,52 +102,72 @@ function newProcessor(context, opConfig) {
             const shutdown = () => {
                 events.removeListener('worker:shutdown', shutdown);
                 shuttingDown = true;
-                flush(() => {
+                flushIfNeeded(() => {
                     resolve();
+                    shuttingDown = false;
                 });
             };
-            const results = [];
+            const resultStream = H();
             events.on('worker:shutdown', shutdown);
+            const finishBatch = () => {
+                events.removeListener('worker:shutdown', shutdown);
+                if (shuttingDown) {
+                    sliceLogger.info('kafka_stream_sender slice finished but waiting to producer to be flushed before shutting down');
+                    return;
+                }
+                flushIfNeeded(() => {
+                    sliceLogger.info('kafka_stream_sender finished batch');
+                    if (opConfig.continue_stream) {
+                        resultStream.end();
+                        resolve(resultStream);
+                    } else {
+                        stream.destroy();
+                        resolve();
+                    }
+                });
+            };
             sliceLogger.info('kafka_stream_sender starting batch');
-            stream
-                .stopOnError((err) => {
+            stream.consume((err, record, push, next) => {
+                if (err) {
                     if (shuttingDown) {
                         sliceLogger.error('kafka_stream_sender stream error when shutting down', err);
                         return;
                     }
-                    if (err) {
+                    if (opConfig.continue_stream) {
+                        next();
+                    } else {
                         sliceLogger.error('kafka_stream_sender stream error', err);
+                        stream.destroy();
                         reject(err);
                     }
-                })
-                .each((record) => {
-                    results.push(record);
-                    const key = _.get(record.data, opConfig.id_field, record.key);
-                    const timestamp = getTimestamp(record);
-                    producer
-                        .produce(
-                            opConfig.topic,
-                            null,
-                            record.toBuffer(),
-                            key,
-                            timestamp
-                        );
-                }).done(() => {
-                    events.removeListener('worker:shutdown', shutdown);
-                    if (shuttingDown) {
-                        sliceLogger.info('kafka_stream_sender slice finished but waiting to producer to be flushed before shutting down');
-                        return;
-                    }
-                    currentBufferSize += _.size(results);
-                    sliceLogger.info('kafka_stream_sender finished batch', _.size(results));
-                    if (shouldFlush()) {
-                        flush(() => {
-                            resolve(H(results));
-                        });
-                    } else {
-                        resolve(H(results));
-                    }
-                });
+                } else if (record === H.nil) {
+                    finishBatch();
+                } else {
+                    const produce = () => {
+                        const key = _.get(record.data, opConfig.id_field, record.key);
+                        const timestamp = getTimestamp(record);
+                        const produceErr = producer
+                            .produce(
+                                opConfig.topic,
+                                null,
+                                record.toBuffer(),
+                                key,
+                                timestamp
+                            );
+                        if (produceErr != null && produceErr !== true) {
+                            sliceLogger.warn('kafka_stream_sender producer queue is full', produceErr);
+                            _.delay(produce, _.random(0, 500));
+                            return;
+                        }
+                        currentBufferSize += 1;
+                        if (opConfig.continue_stream) {
+                            resultStream.write(record);
+                        }
+                        next();
+                    };
+                    setImmediate(produce);
+                }
+            }).resume();
         }));
     };
 }
@@ -181,6 +218,11 @@ function schema() {
             doc: 'How often the producer will poll the broker for metadata information. Set to -1 to disable polling.',
             default: 300000,
             format: Number
+        },
+        continue_stream: {
+            doc: 'Return the stream on the completion of the batch',
+            default: false,
+            format: Boolean
         }
     };
 }

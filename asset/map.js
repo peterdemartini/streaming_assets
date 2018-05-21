@@ -15,8 +15,11 @@ function newProcessor(context, opConfig) {
                 _.set(data, args.path, args.value);
                 return data;
             },
-            JSONStringify: (input) => {
-                const data = _.isBuffer(input) ? input.toString() : input;
+            JSONStringify: (data) => {
+                if (_.isBuffer(data)) {
+                    sliceLogger.warn('data is not a JSON stringifyable');
+                    return data;
+                }
                 try {
                     return JSON.stringify(data);
                 } catch (err) {
