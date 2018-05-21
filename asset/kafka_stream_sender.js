@@ -35,6 +35,9 @@ function newProcessor(context, opConfig) {
         currentBufferSize -= 1;
     });
     const shouldFlush = () => {
+        if (currentBufferSize === 0) {
+            return false;
+        }
         if (currentBufferSize > bufferSize) {
             return true;
         }
@@ -44,10 +47,6 @@ function newProcessor(context, opConfig) {
         return _.inRange(currentBufferSize, lower, upper);
     };
     const flush = (callback) => {
-        if (currentBufferSize === 0) {
-            callback();
-            return;
-        }
         producer.flush(60000, (err) => {
             if (err != null) {
                 jobLogger.error(err);
@@ -102,26 +101,34 @@ function newProcessor(context, opConfig) {
             const shutdown = () => {
                 events.removeListener('worker:shutdown', shutdown);
                 shuttingDown = true;
-                flushIfNeeded(() => {
+                flush(() => {
                     resolve();
                     shuttingDown = false;
                 });
             };
             const resultStream = H();
             events.on('worker:shutdown', shutdown);
-            const finishBatch = () => {
-                events.removeListener('worker:shutdown', shutdown);
+            const finishBatch = (err) => {
                 if (shuttingDown) {
-                    sliceLogger.info('kafka_stream_sender slice finished but waiting to producer to be flushed before shutting down');
+                    sliceLogger.warn('kafka_stream_sender already shutting down', err);
                     return;
                 }
+                if (err) {
+                    sliceLogger.error('kafka_stream_sender stream error', err);
+                    reject(err);
+                    if (opConfig.continue_stream) {
+                        resultStream.destroy();
+                    }
+                    return;
+                }
+                events.removeListener('worker:shutdown', shutdown);
                 flushIfNeeded(() => {
-                    sliceLogger.info('kafka_stream_sender finished batch');
+                    sliceLogger.info('kafka_stream_sender finished batch', { currentBufferSize });
                     if (opConfig.continue_stream) {
                         resultStream.end();
                         resolve(resultStream);
                     } else {
-                        stream.destroy();
+                        stream.end();
                         resolve();
                     }
                 });
@@ -129,16 +136,7 @@ function newProcessor(context, opConfig) {
             sliceLogger.info('kafka_stream_sender starting batch');
             stream.consume((err, record, push, next) => {
                 if (err) {
-                    if (shuttingDown) {
-                        sliceLogger.error('kafka_stream_sender stream error when shutting down', err);
-                        return;
-                    }
-                    sliceLogger.error('kafka_stream_sender stream error', err);
-                    reject(err);
-                    stream.destroy();
-                    if (opConfig.continue_stream) {
-                        resultStream.destroy();
-                    }
+                    finishBatch(err);
                 } else if (record === H.nil) {
                     finishBatch();
                 } else {
@@ -164,7 +162,7 @@ function newProcessor(context, opConfig) {
                         }
                         next();
                     };
-                    setImmediate(produce);
+                    produce();
                 }
             }).resume();
         }));

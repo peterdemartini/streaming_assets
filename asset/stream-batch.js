@@ -27,12 +27,13 @@ function StreamBatch(client, onFinish) {
                 }
                 if (!remaining) {
                     logger.debug('stream_batch: batchStream done');
+                    push(null, H.nil);
                     finish();
                     return;
                 }
                 if (batchSize !== remaining && batchStream.paused) {
                     logger.debug('stream_batch: batchStream paused, waiting until it is available');
-                    _.delay(pullNext, Math.random() * 1000, remaining);
+                    _.delay(pullNext, _.random(0, 1000), remaining);
                     return;
                 }
                 logger.debug('stream_batch: consuming...');
@@ -41,16 +42,24 @@ function StreamBatch(client, onFinish) {
                         logger.error('stream_batch: got message with error', err);
                         push(err);
                         // wait before we retry
-                        _.delay(pullNext, Math.random() * 1000, remaining);
+                        _.delay(pullNext, _.random(0, 1000), remaining);
+                        return;
+                    }
+                    const count = _.size(messages);
+                    if (count === 0) {
+                        pullNext(remaining);
                         return;
                     }
                     logger.debug(`stream_batch: got messages ${_.size(messages)}`);
+                    const done = _.after(count, () => {
+                        pullNext(remaining - count);
+                    });
                     _.forEach(messages, (message) => {
                         setImmediate(() => {
                             push(null, fn(message));
+                            done();
                         });
                     });
-                    pullNext(remaining - _.size(messages));
                 });
             };
             pullNext(batchSize);
