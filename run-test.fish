@@ -33,7 +33,7 @@ function test_kafka_etl
             set -l mem (ps -p "$worker_pid" -o 'rss' | tail -n 1 | xargs)
             set -l cpu (ps -p "$worker_pid" -o '%cpu' | tail -n 1 | xargs)
             echo "$mem" >> "$mem_file"
-            echo "$mem" >> "$cpu_file"
+            echo "$cpu" >> "$cpu_file"
             echo "[*] $job_name worker mem: $mem"
             echo "[*] $job_name worker cpu: $cpu"
         end

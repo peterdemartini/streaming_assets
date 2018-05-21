@@ -133,12 +133,11 @@ function newProcessor(context, opConfig) {
                         sliceLogger.error('kafka_stream_sender stream error when shutting down', err);
                         return;
                     }
+                    sliceLogger.error('kafka_stream_sender stream error', err);
+                    reject(err);
+                    stream.destroy();
                     if (opConfig.continue_stream) {
-                        next();
-                    } else {
-                        sliceLogger.error('kafka_stream_sender stream error', err);
-                        stream.destroy();
-                        reject(err);
+                        resultStream.destroy();
                     }
                 } else if (record === H.nil) {
                     finishBatch();
