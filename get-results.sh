@@ -3,7 +3,7 @@
 set -e
 
 bytesToHuman() {
-    b=${1:-0}; s=0; S=(Bytes {K,M,G,T,E,P,Y,Z}B)
+    b=${1:-0}; s=0; S=({K,M,G,T,E,P,Y,Z}B)
     while ((b > 1024)); do
         b=$((b / 1024))
         let s++

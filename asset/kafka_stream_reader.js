@@ -12,9 +12,8 @@ function newReader(context, opConfig) {
     const events = context.foundation.getEventEmitter();
     const jobLogger = context.logger;
     let rollbackOffsets = {};
-    let pendingOffsets = {};
-    let startingOffsets = {};
-    let endingOffsets = {};
+    const startingOffsets = {};
+    const endingOffsets = {};
     const batchSize = opConfig.size;
     const consumer = context.foundation.getConnection({
         type: 'kafka',
@@ -95,12 +94,10 @@ function newReader(context, opConfig) {
                 partition: parseInt(partition, 10),
                 offset,
                 topic: opConfig.topic
-            });
+            }, 1000);
         });
         Promise.all(rollbacks).then(() => {
             retrying = false;
-            startingOffsets = {};
-            endingOffsets = {};
         }).catch((err) => {
             retrying = false;
             if (err) {
@@ -110,7 +107,7 @@ function newReader(context, opConfig) {
     });
     events.on('slice:success', () => {
         committing = true;
-        const commits = _.map(pendingOffsets, (offset, partition) => commit({
+        const commits = _.map(endingOffsets, (offset, partition) => commit({
             partition: parseInt(partition, 10),
             offset,
             topic: opConfig.topic
@@ -127,10 +124,10 @@ function newReader(context, opConfig) {
             return Promise.reject(err);
         }).then(() => {
             committing = false;
-            pendingOffsets = endingOffsets;
+            // We keep track of where we start reading for each slice.
+            // If there is an error we'll rewind the consumer and read
+            // the slice again.
             rollbackOffsets = startingOffsets;
-            startingOffsets = {};
-            endingOffsets = {};
         });
     });
     const connectToConsumer = () => new Promise((resolve, reject) => {
@@ -154,6 +151,8 @@ function newReader(context, opConfig) {
     return (data, sliceLogger) => connectToConsumer().then(() => {
         sliceLogger.info(`kafka_stream_reader starting new batch of ${batchSize}`);
         const handleMessage = (message) => {
+            // We want to track the first offset we receive so
+            // we can rewind if there is an error.
             if (!startingOffsets[message.partition]) {
                 startingOffsets[message.partition] = message.offset;
             }
@@ -165,7 +164,7 @@ function newReader(context, opConfig) {
             let record = message.value;
             if (opConfig.output_format === 'json') {
                 try {
-                    record = JSON.parse(message.value);
+                    record = JSON.parse(record);
                 } catch (e) {
                     sliceLogger.error('Kafka reader got an invalid record ', e);
                     // TODO: shunt off invalid records to dead letter office
