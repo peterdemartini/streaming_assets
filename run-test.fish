@@ -23,7 +23,11 @@ function test_kafka_etl
             --broker-list localhost:9092 \
             --topic "$job_name" --time -1 --offsets 1 | \
             awk -F ":" '{sum += $3} END {print sum}')
-        if [ "$result" = "0" ];
+        set -l available_count (kafka-run-class kafka.tools.GetOffsetShell \
+            --broker-list localhost:9092 \
+            --topic "fixed-data-set" --time -1 --offsets 1 | \
+            awk -F ":" '{sum += $3} END {print sum}')
+        if [ "$available_count" = "0" ];
             echo "[*] $job_name waiting to start..."
             continue
         end
@@ -31,10 +35,6 @@ function test_kafka_etl
             echo "[+] $job_name started"
             set start_time (gdate +%s)
         end
-        set -l available_count (kafka-run-class kafka.tools.GetOffsetShell \
-            --broker-list localhost:9092 \
-            --topic "fixed-data-set" --time -1 --offsets 1 | \
-            awk -F ":" '{sum += $3} END {print sum}')
         set elapsed_time (math (gdate +%s) - $start_time)
         set -l worker_pid (curl -sf localhost:5678/txt/workers | grep 'worker' | grep "$job_id" | awk '{print $5}')
         if test -n "$worker_pid"

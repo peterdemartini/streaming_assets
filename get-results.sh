@@ -43,8 +43,8 @@ main() {
     get_mem_metrics "old"
     get_cpu_metrics "new"
     get_cpu_metrics "old"
-    cat ./new-kafka-etl.log | grep 'done!'
-    cat ./old-kafka-etl.log | grep 'done!'
+    cat ./new-kafka-etl.log | tail -n 1
+    cat ./old-kafka-etl.log | tail -n 1
 }
 
 main "$@"
