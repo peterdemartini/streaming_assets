@@ -32,8 +32,8 @@ function StreamBatch(client, onFinish) {
                     return;
                 }
                 if (batchSize !== remaining && batchStream.paused) {
-                    logger.debug('stream_batch: batchStream paused, waiting until it is available');
-                    _.delay(pullNext, _.random(0, 1000), remaining);
+                    logger.info('stream_batch: batchStream paused, waiting until it is available');
+                    _.delay(pullNext, _.random(0, 10), remaining);
                     return;
                 }
                 logger.debug('stream_batch: consuming...');
@@ -42,7 +42,7 @@ function StreamBatch(client, onFinish) {
                         logger.error('stream_batch: got message with error', err);
                         push(err);
                         // wait before we retry
-                        _.delay(pullNext, _.random(0, 1000), remaining);
+                        _.delay(pullNext, _.random(0, 10), remaining);
                         return;
                     }
                     const count = _.size(messages);
