@@ -123,7 +123,6 @@ function newProcessor(context, opConfig) {
                         } else {
                             resolve();
                         }
-                        push(null, record);
                         return;
                     }
                     handleRecord(record, next);

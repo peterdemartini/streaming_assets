@@ -129,7 +129,7 @@ main() {
             break
         fi
     done
-    die && ./get-results.sh
+    ./get-results.sh
 }
 
 main "$@"
