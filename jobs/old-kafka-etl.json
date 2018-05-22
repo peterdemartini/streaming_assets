@@ -5,13 +5,14 @@
     "assets": [
         "streaming"
     ],
+    "analytics": true,
     "operations": [
         {
             "_op": "teraslice_kafka_reader",
             "topic": "fixed-data-set",
             "connection": "default",
             "group": "old-kafka-etl",
-            "size": 200000
+            "size": 100000
         },
         {
             "_op": "map",
@@ -33,7 +34,7 @@
             "timestamp_field": "created",
             "id_field": "uuid",
             "connection": "default",
-            "size": 200000
+            "size": 10000
         }
     ],
     "tjm": {

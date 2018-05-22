@@ -5,6 +5,7 @@
     "assets": [
         "streaming"
     ],
+    "analytics": false,
     "operations": [
         {
             "_op": "elasticsearch_data_generator",

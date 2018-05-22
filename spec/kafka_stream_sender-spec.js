@@ -20,7 +20,7 @@ const inputRecords = [
 
 const opConfig = {
     topic: 'testing',
-    size: 500,
+    size: 50,
     continue_stream: true
 };
 
@@ -37,11 +37,16 @@ describe('kafka_stream_sender', () => {
                     // Produce is called once for every record.
                     produce() {
                         this.state += 1;
+                        if (this.state > opConfig.size) {
+                            return new Error('Queue full');
+                        }
+                        return true;
                     },
                     flush(timeout, cb) {
-                    // Flush should be called on opConfig.size boundaries
+                        this.state = 0;
+                        // Flush should be called on opConfig.size boundaries
                         expect(this.state % opConfig.size === 0).toBe(true);
-                        cb();
+                        setTimeout(cb, 100);
                     },
                     on(target, fn) { fn(); /* Immediately trigger producer ready */ },
                     removeListener() {}
@@ -49,17 +54,29 @@ describe('kafka_stream_sender', () => {
             };
         };
 
+        const inputSize = 1000;
         const stream = H((push) => {
-            for (let i = 1; i <= opConfig.size; i += 1) {
-                push(null, new StreamEntity(_.sample(inputRecords)));
-            }
-            stream.end();
+            const endStream = _.after(inputSize, () => {
+                stream.end();
+            });
+            _.times(inputSize, (i) => {
+                const record = new StreamEntity(_.sample(inputRecords), { key: i });
+                const send = () => {
+                    if (stream.paused) {
+                        _.delay(send, 1);
+                        return;
+                    }
+                    push(null, record);
+                    endStream();
+                };
+                _.delay(send, i * 2);
+            });
         });
 
         return harness.run(stream, opConfig)
             .then((resultStream) => {
                 resultStream.toArray((results) => {
-                    expect(results.length).toEqual(opConfig.size);
+                    expect(results.length).toEqual(inputSize);
 
                     // All the results should be the same.
                     expect(results[0] instanceof StreamEntity).toBe(true);
@@ -70,5 +87,5 @@ describe('kafka_stream_sender', () => {
                     done();
                 });
             });
-    });
+    }, 5000);
 });

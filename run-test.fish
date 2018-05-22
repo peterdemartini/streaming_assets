@@ -5,13 +5,6 @@ function test_kafka_etl
     set -l job_file "./jobs/$job_name.json"
     set -l mem_file "./$argv[1]-kafka-mem.log"
     set -l cpu_file "./$argv[1]-kafka-cpu.log"
-    function gracefulExit --on-signal INT --on-signal TERM
-        functions -e gracefulExit
-        echo "[X] Cancelled"
-        noti --title "$job_name Cancelled!"
-        tjm stop "$job_file" > /dev/null
-        kill %self
-    end
     tjm start "$job_file" > /dev/null; or exit 1
     set -l start_time 0
     set -l result 0
@@ -54,8 +47,6 @@ function test_kafka_etl
     echo "[√] $job_name sender batch size is $sender_batch_size"
     echo "[√] $job_name done in $elapsed_time seconds"
     noti --title "$job_name done!" --message "test took $elapsed_time seconds"
-    functions -e gracefulExit
-    tjm stop "$job_file" > /dev/null
 end
 
 test_kafka_etl $argv

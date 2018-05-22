@@ -6,9 +6,8 @@ const H = require('highland');
 
 function newProcessor(context, opConfig) {
     const jobLogger = context.logger;
-    const events = context.foundation.getEventEmitter();
     const bufferSize = 5 * opConfig.size;
-    let currentBufferSize = 0;
+    let processed = 0;
     const producer = context.foundation.getConnection({
         type: 'kafka',
         endpoint: opConfig.connection,
@@ -23,29 +22,9 @@ function newProcessor(context, opConfig) {
             'batch.num.messages': opConfig.size,
             'topic.metadata.refresh.interval.ms': opConfig.metadata_refresh,
             'log.connection.close': false,
-            dr_cb: true
         }
     }).client;
 
-    producer.on('delivery-report', (err) => {
-        if (err) {
-            jobLogger.error('delivery report error', err);
-            return;
-        }
-        currentBufferSize -= 1;
-    });
-    const shouldFlush = () => {
-        if (currentBufferSize === 0) {
-            return false;
-        }
-        if (currentBufferSize > bufferSize) {
-            return true;
-        }
-        // better to be save than sorry
-        const upper = bufferSize + (opConfig.size / 2);
-        const lower = bufferSize - (opConfig.size / 2);
-        return _.inRange(currentBufferSize, lower, upper);
-    };
     const flush = (callback) => {
         producer.flush(60000, (err) => {
             if (err != null) {
@@ -53,16 +32,9 @@ function newProcessor(context, opConfig) {
                 callback(err);
                 return;
             }
-            currentBufferSize = 0;
+            processed = 0;
             callback();
         });
-    };
-    const flushIfNeeded = (callback) => {
-        if (shouldFlush()) {
-            flush(callback);
-            return;
-        }
-        callback();
     };
     producer.on('event.error', (err) => {
         jobLogger.error(err);
@@ -77,7 +49,7 @@ function newProcessor(context, opConfig) {
             resolve();
         });
     });
-
+    connect();
     const getTimestamp = (record) => {
         let date;
         const now = opConfig.timestamp_now;
@@ -95,77 +67,70 @@ function newProcessor(context, opConfig) {
         }
         return date.getTime();
     };
+    const produce = (record) => {
+        const key = _.get(record.data, opConfig.id_field, record.key);
+        const timestamp = getTimestamp(record);
+        const err = producer.produce(
+            opConfig.topic,
+            null,
+            record.toBuffer(),
+            key,
+            timestamp
+        );
+        if (err != null && err !== true) {
+            return err;
+        }
+        return null;
+    };
     return function processor(stream, sliceLogger) {
-        return connect().then(() => new Promise((resolve, reject) => {
-            let shuttingDown = false;
-            const shutdown = () => {
-                events.removeListener('worker:shutdown', shutdown);
-                shuttingDown = true;
-                flush(() => {
-                    resolve();
-                    shuttingDown = false;
-                });
-            };
-            const resultStream = H();
-            events.on('worker:shutdown', shutdown);
-            const finishBatch = (err) => {
-                if (shuttingDown) {
-                    sliceLogger.warn('kafka_stream_sender already shutting down', err);
+        sliceLogger.info('kafka_stream_sender starting batch');
+        const handleStream = () => new Promise((resolve, reject) => {
+            const results = [];
+            const flushIfNeeded = (callback) => {
+                if (processed >= opConfig.size) {
+                    stream.pause();
+                    flush(() => {
+                        callback();
+                    });
                     return;
                 }
-                if (err) {
-                    sliceLogger.error('kafka_stream_sender stream error', err);
-                    reject(err);
-                    if (opConfig.continue_stream) {
-                        resultStream.destroy();
-                    }
-                    return;
-                }
-                events.removeListener('worker:shutdown', shutdown);
-                flushIfNeeded(() => {
-                    sliceLogger.info('kafka_stream_sender finished batch', { currentBufferSize });
-                    if (opConfig.continue_stream) {
-                        resultStream.end();
-                        resolve(resultStream);
-                    } else {
-                        stream.end();
-                        resolve();
-                    }
-                });
+                callback();
             };
-            sliceLogger.info('kafka_stream_sender starting batch');
-            stream.consume((err, record, push, next) => {
-                if (err) {
-                    finishBatch(err);
-                } else if (record === H.nil) {
-                    finishBatch();
+            const handleRecord = (record, next) => {
+                const produceErr = produce(record);
+                if (produceErr != null && produceErr !== true) {
+                    sliceLogger.warn(`kafka_stream_sender producer queue is full ${processed}/${bufferSize}`, produceErr);
+                    processed = bufferSize;
                 } else {
-                    const produce = () => {
-                        const key = _.get(record.data, opConfig.id_field, record.key);
-                        const timestamp = getTimestamp(record);
-                        const produceErr = producer
-                            .produce(
-                                opConfig.topic,
-                                null,
-                                record.toBuffer(),
-                                key,
-                                timestamp
-                            );
-                        if (produceErr != null && produceErr !== true) {
-                            sliceLogger.warn('kafka_stream_sender producer queue is full', produceErr);
-                            _.delay(produce, _.random(0, 100));
-                            return;
-                        }
-                        currentBufferSize += 1;
-                        if (opConfig.continue_stream) {
-                            resultStream.write(record);
-                        }
-                        next();
-                    };
-                    produce();
+                    processed += 1;
                 }
-            }).resume();
-        }));
+                flushIfNeeded(() => {
+                    if (opConfig.continue_stream) {
+                        results.push(record);
+                    }
+                    next();
+                });
+            };
+            stream
+                .consume((err, record, push, next) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    if (stream.ended || record === H.nil) {
+                        if (opConfig.continue_stream) {
+                            resolve(H(results));
+                        } else {
+                            resolve();
+                        }
+                        push(null, record);
+                        return;
+                    }
+                    handleRecord(record, next);
+                }).resume();
+        });
+
+        return connect().then(handleStream);
     };
 }
 

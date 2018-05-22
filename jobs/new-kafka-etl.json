@@ -5,6 +5,7 @@
     "assets": [
         "streaming"
     ],
+    "analytics": true,
     "operations": [
         {
             "_op": "kafka_stream_reader",
@@ -34,7 +35,7 @@
             "timestamp_field": "created",
             "id_field": "uuid",
             "connection": "default",
-            "size": 200000
+            "size": 10000
         }
     ],
     "tjm": {
