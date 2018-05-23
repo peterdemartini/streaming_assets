@@ -1,6 +1,6 @@
 'use strict';
 
-const H = require('highland');
+const { isStream } = require('teraslice-stream');
 const _ = require('lodash');
 
 /*
@@ -51,7 +51,7 @@ function newProcessor(context, opConfig) {
         if (!_.isFunction(functions[fn])) {
             return Promise.reject(new Error('Not a valid map function'));
         }
-        if (H.isStream(stream)) {
+        if (isStream(stream)) {
             return stream.map((record) => {
                 record.data = functions[fn](record.data);
                 return record;

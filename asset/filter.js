@@ -1,6 +1,6 @@
 'use strict';
 
-const H = require('highland');
+const { isStream } = require('teraslice-stream');
 const _ = require('lodash');
 
 /*
@@ -8,7 +8,7 @@ const _ = require('lodash');
  */
 function newProcessor(context, opConfig) {
     return function processor(stream) {
-        if (!H.isStream(stream)) {
+        if (!isStream(stream)) {
             return stream;
         }
         const args = opConfig.args;

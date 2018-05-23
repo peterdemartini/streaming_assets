@@ -4,11 +4,9 @@
 
 const processor = require('../asset/filter');
 const harness = require('teraslice_op_test_harness')(processor);
-const StreamEntity = require('../asset/StreamEntity');
+const { StreamEntity, Stream } = require('teraslice-stream');
 
 const _ = require('lodash');
-
-const H = require('../asset/node_modules/highland');
 
 const inputRecords = [
     { host: 'example.com' },
@@ -18,7 +16,7 @@ const inputRecords = [
 ];
 
 describe('map', () => {
-    it('should filter out the records that does not start with www', () => {
+    it('should filter out the records that does not start with www', (done) => {
         const opConfig = {
             args: {
                 path: ['host'],
@@ -28,16 +26,21 @@ describe('map', () => {
         };
 
         const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
-        const results = harness.run(H(streamRecords), opConfig);
+        const results = harness.run(new Stream(streamRecords), opConfig);
 
-        results.toArray((values) => {
+        results.toArray((err, values) => {
+            if (err) {
+                done(err);
+                return;
+            }
             expect(values.length).toEqual(2);
             expect(values[0] instanceof StreamEntity).toEqual(true);
             expect(values[0].data.host).toEqual('www.example.com');
             expect(values[1].data.host).toEqual('www.example.co.uk');
+            done();
         });
     });
-    it('should filter out some of the records', () => {
+    it('should filter out some of the records', (done) => {
         const opConfig = {
             args: {
                 chance: 1
@@ -46,13 +49,18 @@ describe('map', () => {
         };
         const records = _.times(1000, () => _.sample(inputRecords));
         const streamRecords = _.map(records, record => new StreamEntity(_.cloneDeep(record)));
-        const results = harness.run(H(streamRecords), opConfig);
+        const results = harness.run(new Stream(streamRecords), opConfig);
 
-        results.toArray((values) => {
+        results.toArray((err, values) => {
+            if (err) {
+                done(err);
+                return;
+            }
             expect(values.length).toBeLessThan(_.size(records));
             expect(values[0] instanceof StreamEntity).toEqual(true);
             expect(values[0].data.host).toContain('example');
             expect(values[1].data.host).toContain('example');
+            done();
         });
     });
 });

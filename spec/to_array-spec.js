@@ -4,11 +4,9 @@
 
 const processor = require('../asset/to_array');
 const harness = require('teraslice_op_test_harness')(processor);
-const StreamEntity = require('../asset/StreamEntity');
+const { StreamEntity, isStream } = require('teraslice-stream');
 
 const _ = require('lodash');
-
-const H = require('../asset/node_modules/highland');
 
 const inputRecords = [
     { host: 'example.com' },
@@ -26,7 +24,7 @@ describe('to_array', () => {
 
         results
             .then((values) => {
-                expect(H.isStream(values)).toBeFalsy();
+                expect(isStream(values)).toBeFalsy();
                 expect(values.length).toEqual(4);
 
                 expect(values[0].host).toContain('example');
@@ -40,14 +38,13 @@ describe('to_array', () => {
         const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
         const results = harness.run(streamRecords, opConfig);
 
-        results
-            .then((values) => {
-                expect(values.length).toEqual(4);
+        return results.then((values) => {
+            expect(values.length).toEqual(4);
 
-                expect(values[0].host).toContain('example');
-                expect(values[1].host).toContain('example');
-                expect(values[2].host).toContain('example');
-                expect(values[3].host).toContain('example');
-            });
+            expect(values[0].host).toContain('example');
+            expect(values[1].host).toContain('example');
+            expect(values[2].host).toContain('example');
+            expect(values[3].host).toContain('example');
+        });
     });
 });

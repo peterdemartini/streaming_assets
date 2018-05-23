@@ -2,7 +2,7 @@
 
 const Promise = require('bluebird');
 const _ = require('lodash');
-const H = require('highland');
+const Stream = require('teraslice-stream');
 
 function newProcessor(context, opConfig) {
     const jobLogger = context.logger;
@@ -96,37 +96,32 @@ function newProcessor(context, opConfig) {
                 }
                 callback();
             };
-            const handleRecord = (record, next) => {
-                const produceErr = produce(record);
-                if (produceErr != null && produceErr !== true) {
-                    sliceLogger.warn(`kafka_stream_sender producer queue is full ${processed}/${bufferSize}`, produceErr);
-                    processed = bufferSize;
-                } else {
-                    processed += 1;
-                }
-                flushIfNeeded(() => {
-                    if (opConfig.continue_stream) {
-                        results.push(record);
-                    }
-                    next();
-                });
-            };
             stream
-                .consume((err, record, push, next) => {
+                .eachAsync((record, next) => {
+                    const produceErr = produce(record);
+                    if (produceErr != null && produceErr !== true) {
+                        sliceLogger.warn(`kafka_stream_sender producer queue is full ${processed}/${bufferSize}`, produceErr);
+                        processed = bufferSize;
+                    } else {
+                        processed += 1;
+                    }
+                    flushIfNeeded(() => {
+                        if (opConfig.continue_stream) {
+                            results.push(record);
+                        }
+                        next();
+                    });
+                }).done((err) => {
                     if (err) {
                         reject(err);
                         return;
                     }
-                    if (stream.ended || record === H.nil) {
-                        if (opConfig.continue_stream) {
-                            resolve(H(results));
-                        } else {
-                            resolve();
-                        }
-                        return;
+                    if (opConfig.continue_stream) {
+                        resolve(new Stream(results));
+                    } else {
+                        resolve();
                     }
-                    handleRecord(record, next);
-                }).resume();
+                });
         });
 
         return connect().then(handleStream);

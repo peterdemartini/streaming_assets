@@ -4,11 +4,9 @@
 
 const processor = require('../asset/map');
 const harness = require('teraslice_op_test_harness')(processor);
-const StreamEntity = require('../asset/StreamEntity');
+const { StreamEntity, Stream } = require('teraslice-stream');
 
 const _ = require('lodash');
-
-const H = require('../asset/node_modules/highland');
 
 const inputRecords = [
     { host: 'example.com' },
@@ -19,7 +17,7 @@ const inputRecords = [
 
 describe('map', () => {
     describe('when a stream is given', () => {
-        it('should map add processed to each record', () => {
+        it('should map add processed to each record', (done) => {
             const opConfig = {
                 function: 'set',
                 args: {
@@ -30,9 +28,13 @@ describe('map', () => {
 
             const newEntity = record => new StreamEntity(_.cloneDeep(record));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(H(streamRecords), opConfig);
+            const results = harness.run(new Stream(streamRecords), opConfig);
 
-            results.toArray((values) => {
+            results.toArray((err, values) => {
+                if (err) {
+                    done(err);
+                    return;
+                }
                 expect(values.length).toEqual(4);
 
                 expect(values[0] instanceof StreamEntity).toBeTruthy();
@@ -44,9 +46,10 @@ describe('map', () => {
                 expect(values[1].data.processed).toBeTruthy();
                 expect(values[2].data.processed).toBeTruthy();
                 expect(values[3].data.processed).toBeTruthy();
+                done();
             });
         });
-        it('should add a new date on processedAt', () => {
+        it('should add a new date on processedAt', (done) => {
             const opConfig = {
                 function: 'setDate',
                 args: {
@@ -57,9 +60,13 @@ describe('map', () => {
             const startRange = Date.now() - 1;
             const newEntity = record => new StreamEntity(_.cloneDeep(record));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(H(streamRecords), opConfig);
+            const results = harness.run(new Stream(streamRecords), opConfig);
 
-            results.toArray((values) => {
+            results.toArray((err, values) => {
+                if (err) {
+                    done(err);
+                    return;
+                }
                 expect(values.length).toEqual(4);
 
                 expect(values[0] instanceof StreamEntity).toBeTruthy();
@@ -72,17 +79,22 @@ describe('map', () => {
                 expect(_.inRange(values[1].data.processedAt, startRange, endRange)).toBeTruthy();
                 expect(_.inRange(values[2].data.processedAt, startRange, endRange)).toBeTruthy();
                 expect(_.inRange(values[3].data.processedAt, startRange, endRange)).toBeTruthy();
+                done();
             });
         });
-        it('should be JSON parsable', () => {
+        it('should be JSON parsable', (done) => {
             const opConfig = {
                 function: 'JSONParse'
             };
             const newEntity = record => new StreamEntity(JSON.stringify(record));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(H(streamRecords), opConfig);
+            const results = harness.run(new Stream(streamRecords), opConfig);
 
-            results.toArray((values) => {
+            results.toArray((err, values) => {
+                if (err) {
+                    done(err);
+                    return;
+                }
                 expect(values.length).toEqual(4);
 
                 expect(values[0] instanceof StreamEntity).toBeTruthy();
@@ -90,17 +102,22 @@ describe('map', () => {
                 expect(values[1].data.host).toEqual('www.example.com');
                 expect(values[2].data.host).toEqual('example.co.uk');
                 expect(values[3].data.host).toEqual('www.example.co.uk');
+                done();
             });
         });
-        it('should be JSON parsable with it is buffer', () => {
+        it('should be JSON parsable with it is buffer', (done) => {
             const opConfig = {
                 function: 'JSONParse'
             };
             const newEntity = record => new StreamEntity(Buffer.from(JSON.stringify(record)));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(H(streamRecords), opConfig);
+            const results = harness.run(new Stream(streamRecords), opConfig);
 
-            results.toArray((values) => {
+            results.toArray((err, values) => {
+                if (err) {
+                    done(err);
+                    return;
+                }
                 expect(values.length).toEqual(4);
 
                 expect(values[0] instanceof StreamEntity).toBeTruthy();
@@ -108,17 +125,22 @@ describe('map', () => {
                 expect(values[1].data.host).toEqual('www.example.com');
                 expect(values[2].data.host).toEqual('example.co.uk');
                 expect(values[3].data.host).toEqual('www.example.co.uk');
+                done();
             });
         });
-        it('should be JSON stringifyable', () => {
+        it('should be JSON stringifyable', (done) => {
             const opConfig = {
                 function: 'JSONStringify'
             };
             const newEntity = record => new StreamEntity(_.cloneDeep(record));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(H(streamRecords), opConfig);
+            const results = harness.run(new Stream(streamRecords), opConfig);
 
-            results.toArray((values) => {
+            results.toArray((err, values) => {
+                if (err) {
+                    done(err);
+                    return;
+                }
                 expect(values.length).toEqual(4);
 
                 expect(values[0] instanceof StreamEntity).toBeTruthy();
@@ -126,6 +148,7 @@ describe('map', () => {
                 expect(typeof values[1].data).toEqual('string');
                 expect(typeof values[2].data).toEqual('string');
                 expect(typeof values[3].data).toEqual('string');
+                done();
             });
         });
     });

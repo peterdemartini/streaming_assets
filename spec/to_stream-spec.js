@@ -4,11 +4,9 @@
 
 const processor = require('../asset/to_stream');
 const harness = require('teraslice_op_test_harness')(processor);
-const StreamEntity = require('../asset/StreamEntity');
+const { StreamEntity, isStream } = require('teraslice-stream');
 
 const _ = require('lodash');
-
-const H = require('../asset/node_modules/highland');
 
 const inputRecords = [
     { host: 'example.com' },
@@ -21,21 +19,30 @@ const opConfig = {
 };
 
 describe('stream', () => {
-    it('should generate an empty stream if no input data', () => {
+    it('should generate an empty stream if no input data', (done) => {
         const results = harness.run([], opConfig);
 
-        expect(H.isStream(results)).toEqual(true);
-        results.toArray((values) => {
+        expect(isStream(results)).toEqual(true);
+        results.toArray((err, values) => {
+            if (err) {
+                done(err);
+                return;
+            }
             expect(values.length).toEqual(0);
+            done();
         });
     });
 
-    it('should generate a valid stream', () => {
+    it('should generate a valid stream', (done) => {
         const results = harness.run(_.cloneDeep(inputRecords), opConfig);
 
-        expect(H.isStream(results)).toEqual(true);
+        expect(isStream(results)).toEqual(true);
 
-        results.toArray((values) => {
+        results.toArray((err, values) => {
+            if (err) {
+                done(err);
+                return;
+            }
             expect(values.length).toEqual(4);
 
             expect(values[0].toBuffer()).toEqual(Buffer.from(JSON.stringify(values[0].data)));
@@ -47,6 +54,7 @@ describe('stream', () => {
             expect(values[2].data.host).toContain('example');
             expect(values[3] instanceof StreamEntity).toBe(true);
             expect(values[3].data.host).toContain('example');
+            done();
         });
     });
 });

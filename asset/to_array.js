@@ -1,9 +1,8 @@
 'use strict';
 
-const H = require('highland');
 const _ = require('lodash');
 const Promise = require('bluebird');
-const StreamEntity = require('./StreamEntity');
+const { isStream, isStreamEntity } = require('teraslice-stream');
 /*
  * This processor adapts the incoming array into a Highland stream so that
  * downstream processors can work on the stream.
@@ -11,14 +10,18 @@ const StreamEntity = require('./StreamEntity');
 function newProcessor() {
     return function processor(input) {
         const convertToData = records => _.map(records, (record) => {
-            if (record instanceof StreamEntity) {
-                return record.data;
+            if (isStreamEntity(record)) {
+                return record.toJSON();
             }
             return record;
         });
-        return new Promise((resolve) => {
-            if (H.isStream(input)) {
-                input.toArray((result) => {
+        return new Promise((resolve, reject) => {
+            if (isStream(input)) {
+                input.toArray((err, result) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
                     resolve(convertToData(result));
                 });
                 return;

@@ -2,8 +2,8 @@
 
 const Promise = require('bluebird');
 const _ = require('lodash');
-
-const StreamEntity = require('./StreamEntity');
+const Terastream = require('teraslice-stream');
+const { StreamEntity } = require('teraslice-stream');
 const StreamBatch = require('./stream-batch');
 
 const KAFKA_NO_OFFSET_STORED = -168;
@@ -180,7 +180,7 @@ function newReader(context, opConfig) {
             );
         };
         const batch = streamBatch.takeNext(batchSize, handleMessage, sliceLogger);
-        return Promise.resolve(batch);
+        return Promise.resolve(new Terastream(batch));
     });
 }
 

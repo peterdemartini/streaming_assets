@@ -6,10 +6,9 @@ const processor = require('../asset/kafka_stream_sender');
 const harness = require('teraslice_op_test_harness')(processor);
 const _ = require('lodash');
 
-const StreamEntity = require('../asset/StreamEntity');
+const { StreamEntity, Stream } = require('teraslice-stream');
 
-// const Rx = require('../asset/node_modules/rxjs');
-const H = require('../asset/node_modules/highland');
+const H = require('highland');
 
 const inputRecords = [
     { host: 'example.com' },
@@ -73,9 +72,13 @@ describe('kafka_stream_sender', () => {
             });
         });
 
-        return harness.run(stream, opConfig)
+        harness.run(new Stream(stream), opConfig)
             .then((resultStream) => {
-                resultStream.toArray((results) => {
+                resultStream.toArray((err, results) => {
+                    if (err) {
+                        done(err);
+                        return;
+                    }
                     expect(results.length).toEqual(inputSize);
 
                     // All the results should be the same.
