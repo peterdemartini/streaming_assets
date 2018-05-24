@@ -2727,9 +2727,10 @@ teraslice_op_test_harness@terascope/teraslice_op_test_harness:
 
 teraslice_stream@terascope/teraslice_stream:
   version "1.0.0"
-  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/1227853b08a1f2fadfa4bcf0a5c4abc2ec08d414"
+  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/8f4f5fab0655541c033a30fdb8affc51d1fbe2dc"
   dependencies:
     auto-bind "^1.2.0"
+    bluebird "^3.5.1"
     highland "^3.0.0-beta.6"
     lodash "^4.17.10"
     uuid "^3.2.1"

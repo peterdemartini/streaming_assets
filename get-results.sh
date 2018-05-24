@@ -17,7 +17,7 @@ get_mem_metrics() {
     local result
     local results=()
     local mem_file="./$method-kafka-mem.log"
-    for metric in ${metrics[@]}; do
+    for metric in "${metrics[@]}"; do
         result="$(datamash --format "%.f" "$metric" 1 < "$mem_file")"
         results+=("$(bytesToHuman "$result") ($metric)")
     done
@@ -30,7 +30,7 @@ get_cpu_metrics() {
     local result
     local results=()
     local cpu_file="./$method-kafka-cpu.log"
-    for metric in ${metrics[@]}; do
+    for metric in "${metrics[@]}"; do
         result="$(datamash --format "%.f" "$metric" 1 < "$cpu_file")"
         results+=("$result% ($metric)")
     done
@@ -58,7 +58,7 @@ main() {
     while read -r line; do
         old_results+=("$line")
     done < <(grep '\[\√\]' ./old-kafka-etl.log)
-    for i in ${!new_results[@]}; do
+    for i in "${!new_results[@]}"; do
         echo "${new_results[$i]}" | replace_new_with_streaming
         echo "${old_results[$i]}" | replace_old_with_batching
     done

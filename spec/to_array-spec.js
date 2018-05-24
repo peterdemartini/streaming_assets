@@ -4,7 +4,7 @@
 
 const processor = require('../asset/to_array');
 const harness = require('teraslice_op_test_harness')(processor);
-const { StreamEntity, isStream } = require('teraslice_stream');
+const { StreamEntity, isStream } = require('../asset/node_modules/teraslice_stream');
 
 const _ = require('lodash');
 

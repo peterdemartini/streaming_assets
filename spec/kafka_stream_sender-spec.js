@@ -6,9 +6,9 @@ const processor = require('../asset/kafka_stream_sender');
 const harness = require('teraslice_op_test_harness')(processor);
 const _ = require('lodash');
 
-const { StreamEntity, Stream } = require('teraslice_stream');
+const { StreamEntity, Stream } = require('../asset/node_modules/teraslice_stream');
 
-const H = require('highland');
+const H = require('../asset/node_modules/highland');
 
 const inputRecords = [
     { host: 'example.com' },
