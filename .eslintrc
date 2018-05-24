@@ -9,7 +9,6 @@
         "jasmine": true
     },
     "rules": {
-        "prefer-destructuring": "off",
         "no-underscore-dangle": "off",
         "indent": ["error", 4],
         "no-param-reassign": ["error", { "props": false }],

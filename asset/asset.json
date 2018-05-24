@@ -1,6 +1,6 @@
 {
     "name": "streaming",
-    "version": "1.7.23",
+    "version": "2.0.2",
     "description": "Prototype stream processing operators",
     "tjm": {
         "clusters": [

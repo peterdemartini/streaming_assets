@@ -4,7 +4,7 @@
 
 const processor = require('../asset/map');
 const harness = require('teraslice_op_test_harness')(processor);
-const { StreamEntity, Stream } = require('teraslice-stream');
+const { StreamEntity, Stream } = require('teraslice_stream');
 
 const _ = require('lodash');
 
@@ -112,7 +112,6 @@ describe('map', () => {
             const newEntity = record => new StreamEntity(Buffer.from(JSON.stringify(record)));
             const streamRecords = _.map(inputRecords, newEntity);
             const results = harness.run(new Stream(streamRecords), opConfig);
-
             results.toArray((err, values) => {
                 if (err) {
                     done(err);

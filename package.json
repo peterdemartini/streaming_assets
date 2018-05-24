@@ -5,8 +5,8 @@
   "main": "index.js",
   "author": "",
   "scripts": {
-    "test": "jasmine spec/*",
-    "lint": "standard"
+    "test": "jasmine",
+    "lint": "eslint"
   },
   "dependencies": {
     "lodash": "^4.17.4"
@@ -17,8 +17,11 @@
     "eslint-plugin-import": "^2.11.0",
     "eslint-plugin-jsx-a11y": "^6.0.3",
     "eslint-plugin-react": "^7.8.2",
-    "highland": "^2.13.0",
+    "highland": "^3.0.0-beta.6",
     "jasmine": "^2.8.0",
-    "teraslice_op_test_harness": "terascope/teraslice_op_test_harness"
+    "jasmine-expect": "^3.8.3",
+    "jasmine-spec-reporter": "^4.2.1",
+    "teraslice_op_test_harness": "terascope/teraslice_op_test_harness",
+    "teraslice_stream": "terascope/teraslice_stream"
   }
 }

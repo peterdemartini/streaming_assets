@@ -1,6 +1,6 @@
 'use strict';
 
-const { isStream } = require('teraslice-stream');
+const { isStream } = require('teraslice_stream');
 const _ = require('lodash');
 
 /*

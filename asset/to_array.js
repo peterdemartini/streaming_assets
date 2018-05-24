@@ -2,7 +2,7 @@
 
 const _ = require('lodash');
 const Promise = require('bluebird');
-const { isStream, isStreamEntity } = require('teraslice-stream');
+const { isStream, isStreamEntity } = require('teraslice_stream');
 /*
  * This processor adapts the incoming array into a Highland stream so that
  * downstream processors can work on the stream.

@@ -1,13 +1,17 @@
 {
   "name": "streaming_asset",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "description": "Prototype stream processing operators",
   "main": "index.js",
   "author": "",
+  "scripts": {
+    "test": "pushd ..; npm test; popd;"
+  },
   "dependencies": {
     "bluebird": "^3.5.0",
     "highland": "^3.0.0-beta.6",
     "lodash": "^4.17.5",
+    "teraslice_stream": "terascope/teraslice_stream",
     "uuid": "^3.2.1"
   }
 }

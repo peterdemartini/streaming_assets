@@ -1,7 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
-const { StreamEntity, Stream, isStream } = require('teraslice-stream');
+const { StreamEntity, Stream, isStream } = require('teraslice_stream');
 /*
  * This processor adapts the incoming array into a Highland stream so that
  * downstream processors can work on the stream.

@@ -2,7 +2,6 @@
 
 const Promise = require('bluebird');
 const _ = require('lodash');
-const Stream = require('teraslice-stream');
 
 function newProcessor(context, opConfig) {
     const jobLogger = context.logger;
@@ -84,45 +83,35 @@ function newProcessor(context, opConfig) {
     };
     return function processor(stream, sliceLogger) {
         sliceLogger.info('kafka_stream_sender starting batch');
-        const handleStream = () => new Promise((resolve, reject) => {
-            const results = [];
+        const handleStream = () => {
             const flushIfNeeded = (callback) => {
                 if (processed >= opConfig.size) {
                     stream.pause();
-                    flush(() => {
-                        callback();
+                    flush((err) => {
+                        stream.resume();
+                        callback(err);
                     });
                     return;
                 }
                 callback();
             };
-            stream
-                .eachAsync((record, next) => {
-                    const produceErr = produce(record);
-                    if (produceErr != null && produceErr !== true) {
-                        sliceLogger.warn(`kafka_stream_sender producer queue is full ${processed}/${bufferSize}`, produceErr);
-                        processed = bufferSize;
-                    } else {
-                        processed += 1;
-                    }
-                    flushIfNeeded(() => {
-                        if (opConfig.continue_stream) {
-                            results.push(record);
-                        }
-                        next();
-                    });
-                }).done((err) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-                    if (opConfig.continue_stream) {
-                        resolve(new Stream(results));
-                    } else {
-                        resolve();
-                    }
+            const handleRecord = (record, next) => {
+                const produceErr = produce(record);
+                if (produceErr != null && produceErr !== true) {
+                    sliceLogger.warn(`kafka_stream_sender producer queue is full ${processed}/${bufferSize}`, produceErr);
+                    processed = bufferSize;
+                } else {
+                    processed += 1;
+                }
+                flushIfNeeded((err) => {
+                    next(err, record);
                 });
-        });
+            };
+            if (opConfig.continue_stream) {
+                return stream.mapAsync(handleRecord).toStream();
+            }
+            return stream.eachAsync(handleRecord).done();
+        };
 
         return connect().then(handleStream);
     };

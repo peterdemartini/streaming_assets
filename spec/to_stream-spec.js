@@ -4,7 +4,7 @@
 
 const processor = require('../asset/to_stream');
 const harness = require('teraslice_op_test_harness')(processor);
-const { StreamEntity, isStream } = require('teraslice-stream');
+const { StreamEntity, isStream } = require('teraslice_stream');
 
 const _ = require('lodash');
 
@@ -18,7 +18,7 @@ const inputRecords = [
 const opConfig = {
 };
 
-describe('stream', () => {
+describe('to_stream', () => {
     it('should generate an empty stream if no input data', (done) => {
         const results = harness.run([], opConfig);
 
