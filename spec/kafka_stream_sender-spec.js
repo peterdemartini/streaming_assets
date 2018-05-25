@@ -6,9 +6,7 @@ const processor = require('../asset/kafka_stream_sender');
 const harness = require('teraslice_op_test_harness')(processor);
 const _ = require('lodash');
 
-const { StreamEntity, Stream } = require('../asset/node_modules/teraslice_stream');
-
-const H = require('../asset/node_modules/highland');
+const { StreamEntity, Stream, StreamSource } = require('../asset/node_modules/teraslice_stream');
 
 const inputRecords = [
     { host: 'example.com' },
@@ -54,22 +52,20 @@ describe('kafka_stream_sender', () => {
         };
 
         const inputSize = 1000;
-        const stream = H((push) => {
-            const endStream = _.after(inputSize, () => {
-                stream.end();
-            });
-            _.times(inputSize, (i) => {
-                const record = new StreamEntity(_.sample(inputRecords), { key: i });
-                const send = () => {
-                    if (stream.paused) {
-                        _.delay(send, 1);
-                        return;
-                    }
-                    push(null, record);
-                    endStream();
-                };
-                _.delay(send, i * 2);
-            });
+        const stream = new StreamSource();
+        const endStream = _.after(inputSize, () => {
+            stream.end();
+        });
+        _.times(inputSize, (i) => {
+            const send = () => {
+                if (stream.isPaused()) {
+                    _.delay(send, 1);
+                    return;
+                }
+                stream.write(_.sample(inputRecords), { key: i });
+                endStream();
+            };
+            _.delay(send, i * 2);
         });
 
         harness.run(new Stream(stream), opConfig)

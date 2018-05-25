@@ -2,10 +2,6 @@
 # yarn lockfile v1
 
 
-auto-bind@^1.2.0:
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/auto-bind/-/auto-bind-1.2.0.tgz#8b7e318aad53d43ba8a8ecaf0066d85d5f798cd6"
-
 bluebird@^3.5.0, bluebird@^3.5.1:
   version "3.5.1"
   resolved "https://registry.yarnpkg.com/bluebird/-/bluebird-3.5.1.tgz#d9551f9de98f1fcda1e683d17ee91a0602ee2eb9"
@@ -20,9 +16,8 @@ lodash@^4.17.10, lodash@^4.17.5:
 
 teraslice_stream@terascope/teraslice_stream:
   version "1.0.0"
-  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/8f4f5fab0655541c033a30fdb8affc51d1fbe2dc"
+  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/a84affb97dba17c1aff0efa63f2c9d0cfb52d963"
   dependencies:
-    auto-bind "^1.2.0"
     bluebird "^3.5.1"
     highland "^3.0.0-beta.6"
     lodash "^4.17.10"

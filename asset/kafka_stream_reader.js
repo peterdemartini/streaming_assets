@@ -2,8 +2,10 @@
 
 const Promise = require('bluebird');
 const _ = require('lodash');
-const { Stream, StreamEntity } = require('teraslice_stream');
+const { Stream, StreamSource } = require('teraslice_stream');
 const StreamBatch = require('./stream-batch');
+
+const setImmediatePromise = Promise.promisify(setImmediate);
 
 const KAFKA_NO_OFFSET_STORED = -168;
 
@@ -34,6 +36,7 @@ function newReader(context, opConfig) {
     }).client;
     const commit = Promise.promisify(consumer.commit, { context: consumer });
     const seek = Promise.promisify(consumer.seek, { context: consumer });
+    const consume = Promise.promisify(consumer.consume, { context: consumer });
 
     const streamBatch = new StreamBatch(consumer, () => {
         jobLogger.info('kafka_stream_reader finished batch');
@@ -141,46 +144,96 @@ function newReader(context, opConfig) {
             return;
         }
         consumer.connect();
-        consumer.on('ready', () => {
+        consumer.once('ready', () => {
             consumer.setDefaultConsumeTimeout(100);
             consumer.subscribe([opConfig.topic]);
             resolve();
         });
     });
-    return (data, sliceLogger) => connectToConsumer().then(() => {
-        sliceLogger.info(`kafka_stream_reader starting new batch of ${batchSize}`);
-        const handleMessage = (message) => {
-            // We want to track the first offset we receive so
-            // we can rewind if there is an error.
-            if (!startingOffsets[message.partition]) {
-                startingOffsets[message.partition] = message.offset;
-            }
-
-            // We record the last offset we see for each
-            // partition so that if the slice is successfull
-            // they can be committed.
-            endingOffsets[message.partition] = message.offset + 1;
-            let record = message.value;
+    return async (data, sliceLogger) => {
+        function formatRecord(record) {
             if (opConfig.output_format === 'json') {
                 try {
-                    record = JSON.parse(record);
+                    return JSON.parse(record);
                 } catch (e) {
                     sliceLogger.error('Kafka reader got an invalid record ', e);
                     // TODO: shunt off invalid records to dead letter office
                 }
             }
-            return new StreamEntity(
-                record,
-                {
-                    key: message.key,
-                    processTime: new Date(),
-                    ingestTime: new Date(message.timestamp),
+            return record;
+        }
+        await connectToConsumer();
+
+        sliceLogger.info(`kafka_stream_reader starting new batch of ${batchSize}`);
+        const streamSource = new StreamSource();
+        const pullNext = async (remaining) => {
+            await setImmediatePromise();
+            sliceLogger.debug(`stream_batch: pullNext (${remaining})`);
+            if (streamSource.isEnded()) {
+                return;
+            }
+            if (!remaining) {
+                streamSource.end();
+                return;
+            }
+            if (batchSize !== remaining && streamSource.isPaused()) {
+                pullNext(remaining);
+                return;
+            }
+            let messages;
+            try {
+                messages = await consume(remaining);
+            } catch (err) {
+                if (err) {
+                    sliceLogger.warn('stream_batch: got message with error', err);
+                    streamSource.write(err);
+                    pullNext(remaining);
+                    return;
                 }
-            );
+            }
+            const count = _.size(messages);
+            if (count === 0) {
+                pullNext(remaining);
+                return;
+            }
+            sliceLogger.debug(`stream_batch: got messages ${_.size(messages)}`);
+            const writeMessages = async (initial = 0) => {
+                let lastIndex = initial;
+                for (let i = initial; i < count; i += 1) {
+                    const message = messages[i];
+                    const record = formatRecord(message.value);
+                    const success = streamSource.write(
+                        record,
+                        {
+                            key: message.key,
+                            processTime: new Date(),
+                            ingestTime: new Date(message.timestamp),
+                        }
+                    );
+                    if (!success) {
+                        sliceLogger.warn('Unable to write to stream', success);
+                        break;
+                    }
+                    // We want to track the first offset we receive so
+                    // we can rewind if there is an error.
+                    if (!startingOffsets[message.partition]) {
+                        startingOffsets[message.partition] = message.offset;
+                    }
+
+                    // We record the last offset we see for each
+                    // partition so that if the slice is successfull
+                    // they can be committed.
+                    endingOffsets[message.partition] = message.offset + 1;
+                    lastIndex += 1;
+                }
+                return writeMessages(lastIndex);
+            };
+            await writeMessages();
+            pullNext(remaining - count);
         };
-        const batch = streamBatch.takeNext(batchSize, handleMessage, sliceLogger);
-        return Promise.resolve(new Stream(batch));
-    });
+        pullNext(batchSize);
+        return new Stream(streamSource);
+    };
 }
 
 function slicerQueueLength() {
