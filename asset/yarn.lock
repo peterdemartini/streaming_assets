@@ -16,7 +16,7 @@ lodash@^4.17.10, lodash@^4.17.5:
 
 teraslice_stream@terascope/teraslice_stream:
   version "1.0.0"
-  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/a84affb97dba17c1aff0efa63f2c9d0cfb52d963"
+  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/d7b99f1220cd1929d1c6a719374001da298a63a9"
   dependencies:
     bluebird "^3.5.1"
     highland "^3.0.0-beta.6"

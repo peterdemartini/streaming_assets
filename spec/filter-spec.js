@@ -4,7 +4,7 @@
 
 const processor = require('../asset/filter');
 const harness = require('teraslice_op_test_harness')(processor);
-const { StreamEntity, Stream } = require('../asset/node_modules/teraslice_stream');
+const { StreamEntity, StreamSource } = require('../asset/node_modules/teraslice_stream');
 
 const _ = require('lodash');
 
@@ -26,7 +26,8 @@ describe('map', () => {
         };
 
         const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
-        const results = harness.run(new Stream(streamRecords), opConfig);
+        const streamSource = new StreamSource(streamRecords);
+        const results = harness.run(streamSource.toStream(), opConfig);
 
         results.toArray((err, values) => {
             if (err) {
@@ -49,7 +50,8 @@ describe('map', () => {
         };
         const records = _.times(1000, () => _.sample(inputRecords));
         const streamRecords = _.map(records, record => new StreamEntity(_.cloneDeep(record)));
-        const results = harness.run(new Stream(streamRecords), opConfig);
+        const streamSource = new StreamSource(streamRecords);
+        const results = harness.run(streamSource.toStream(), opConfig);
 
         results.toArray((err, values) => {
             if (err) {

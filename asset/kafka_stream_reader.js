@@ -2,8 +2,7 @@
 
 const Promise = require('bluebird');
 const _ = require('lodash');
-const { Stream, StreamSource } = require('teraslice_stream');
-const StreamBatch = require('./stream-batch');
+const { StreamSource } = require('teraslice_stream');
 
 const setImmediatePromise = Promise.promisify(setImmediate);
 
@@ -38,10 +37,6 @@ function newReader(context, opConfig) {
     const seek = Promise.promisify(consumer.seek, { context: consumer });
     const consume = Promise.promisify(consumer.consume, { context: consumer });
 
-    const streamBatch = new StreamBatch(consumer, () => {
-        jobLogger.info('kafka_stream_reader finished batch');
-    });
-
     let committing = false;
     let retrying = false;
     let shuttingDown = false;
@@ -68,7 +63,6 @@ function newReader(context, opConfig) {
     events.on('worker:shutdown', () => {
         shuttingDown = true;
         waitForCommit(() => {
-            streamBatch.end();
             consumer.unsubscribe();
             consumer.disconnect(() => {
                 jobLogger.info('kafka_stream_reader consumer disconnected');
@@ -89,7 +83,6 @@ function newReader(context, opConfig) {
             return;
         }
         retrying = true;
-        streamBatch.end();
         const rollbacks = _.map(rollbackOffsets, (offset, partition) => {
             jobLogger.debug('consumer seek', { partition, offset });
             return seek({
@@ -232,7 +225,7 @@ function newReader(context, opConfig) {
             pullNext(remaining - count);
         };
         pullNext(batchSize);
-        return new Stream(streamSource);
+        return streamSource.toStream();
     };
 }
 

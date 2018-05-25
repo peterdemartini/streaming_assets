@@ -4,7 +4,7 @@
 
 const processor = require('../asset/map');
 const harness = require('teraslice_op_test_harness')(processor);
-const { StreamEntity, Stream } = require('../asset/node_modules/teraslice_stream');
+const { StreamEntity, StreamSource } = require('../asset/node_modules/teraslice_stream');
 
 const _ = require('lodash');
 
@@ -28,7 +28,8 @@ describe('map', () => {
 
             const newEntity = record => new StreamEntity(_.cloneDeep(record));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(new Stream(streamRecords), opConfig);
+            const streamSource = new StreamSource(streamRecords);
+            const results = harness.run(streamSource.toStream(), opConfig);
 
             results.toArray((err, values) => {
                 if (err) {
@@ -60,7 +61,8 @@ describe('map', () => {
             const startRange = Date.now() - 1;
             const newEntity = record => new StreamEntity(_.cloneDeep(record));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(new Stream(streamRecords), opConfig);
+            const streamSource = new StreamSource(streamRecords);
+            const results = harness.run(streamSource.toStream(), opConfig);
 
             results.toArray((err, values) => {
                 if (err) {
@@ -88,7 +90,8 @@ describe('map', () => {
             };
             const newEntity = record => new StreamEntity(JSON.stringify(record));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(new Stream(streamRecords), opConfig);
+            const streamSource = new StreamSource(streamRecords);
+            const results = harness.run(streamSource.toStream(), opConfig);
 
             results.toArray((err, values) => {
                 if (err) {
@@ -111,7 +114,8 @@ describe('map', () => {
             };
             const newEntity = record => new StreamEntity(Buffer.from(JSON.stringify(record)));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(new Stream(streamRecords), opConfig);
+            const streamSource = new StreamSource(streamRecords);
+            const results = harness.run(streamSource.toStream(), opConfig);
             results.toArray((err, values) => {
                 if (err) {
                     done(err);
@@ -133,7 +137,8 @@ describe('map', () => {
             };
             const newEntity = record => new StreamEntity(_.cloneDeep(record));
             const streamRecords = _.map(inputRecords, newEntity);
-            const results = harness.run(new Stream(streamRecords), opConfig);
+            const streamSource = new StreamSource(streamRecords);
+            const results = harness.run(streamSource.toStream(), opConfig);
 
             results.toArray((err, values) => {
                 if (err) {
