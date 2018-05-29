@@ -38,7 +38,7 @@ p-timeout@^2.0.1:
 
 teraslice_stream@terascope/teraslice_stream:
   version "1.0.0"
-  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/3ab2d6013913253010e19221f70dcb62fb25c138"
+  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/027c2f984ca8d616d9dbee08a65cad8f63c40971"
   dependencies:
     async "^2.6.1"
     bluebird "^3.5.1"

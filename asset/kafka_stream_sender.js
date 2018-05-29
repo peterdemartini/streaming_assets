@@ -104,7 +104,7 @@ function newProcessor(context, opConfig) {
             if (opConfig.continue_stream) {
                 return stream.each(handleRecord);
             }
-            return stream.each(handleRecord).done();
+            return stream.each(handleRecord).done().then(() => stream.destroy());
         }
 
         return connect().then(handleStream);
