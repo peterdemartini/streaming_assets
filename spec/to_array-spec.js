@@ -4,7 +4,7 @@
 
 const processor = require('../asset/to_array');
 const harness = require('teraslice_op_test_harness')(processor);
-const { StreamEntity, isStream, StreamSource } = require('../asset/node_modules/teraslice_stream');
+const { StreamEntity, isStream, Stream } = require('../asset/node_modules/teraslice_stream');
 
 const _ = require('lodash');
 
@@ -19,7 +19,7 @@ const opConfig = {
 };
 
 describe('to_array', () => {
-    it('should get handle a normal array', () => {
+    it('should get handle a normal array', (done) => {
         const results = harness.run(_.cloneDeep(inputRecords), opConfig);
 
         results
@@ -31,13 +31,15 @@ describe('to_array', () => {
                 expect(values[1].host).toContain('example');
                 expect(values[2].host).toContain('example');
                 expect(values[3].host).toContain('example');
+                done();
             });
     });
 
     it('should get an array result from a stream', () => {
-        const streamRecords = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
-        const streamSource = new StreamSource(streamRecords);
-        const results = harness.run(streamSource.toStream(), opConfig);
+        const records = _.map(inputRecords, record => new StreamEntity(_.cloneDeep(record)));
+        const stream = new Stream();
+        stream.write(records).then(() => stream.end());
+        const results = harness.run(stream, opConfig);
 
         return results.then((values) => {
             expect(values.length).toEqual(4);

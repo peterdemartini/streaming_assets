@@ -23,14 +23,10 @@ describe('to_stream', () => {
         const results = harness.run([], opConfig);
 
         expect(isStream(results)).toEqual(true);
-        results.toArray((err, values) => {
-            if (err) {
-                done(err);
-                return;
-            }
+        results.toArray().then((values) => {
             expect(values.length).toEqual(0);
             done();
-        });
+        }).catch(done.fail);
     });
 
     it('should generate a valid stream', (done) => {
@@ -38,11 +34,7 @@ describe('to_stream', () => {
 
         expect(isStream(results)).toEqual(true);
 
-        results.toArray((err, values) => {
-            if (err) {
-                done(err);
-                return;
-            }
+        results.toArray().then((values) => {
             expect(values.length).toEqual(4);
 
             expect(values[0].toBuffer()).toEqual(Buffer.from(JSON.stringify(values[0].data)));
@@ -55,6 +47,6 @@ describe('to_stream', () => {
             expect(values[3] instanceof StreamEntity).toBe(true);
             expect(values[3].data.host).toContain('example');
             done();
-        });
+        }).catch(done.fail);
     });
 });

@@ -24,32 +24,36 @@ function newProcessor(context, opConfig) {
         }
     }).client;
 
-    const flush = (callback) => {
-        producer.flush(60000, (err) => {
-            if (err != null) {
-                jobLogger.error(err);
-                callback(err);
-                return;
-            }
-            processed = 0;
-            callback();
+    function flush() {
+        return new Promise((resolve, reject) => {
+            producer.flush(60000, (err) => {
+                if (err != null) {
+                    jobLogger.error(err);
+                    reject(err);
+                    return;
+                }
+                processed = 0;
+                resolve();
+            });
         });
-    };
+    }
     producer.on('event.error', (err) => {
         jobLogger.error(err);
     });
-    const connect = () => new Promise((resolve) => {
-        if (producer.isConnected()) {
-            resolve();
-            return;
-        }
-        producer.connect();
-        producer.once('ready', () => {
-            resolve();
+    function connect() {
+        return new Promise((resolve) => {
+            if (producer.isConnected()) {
+                resolve();
+                return;
+            }
+            producer.connect();
+            producer.once('ready', () => {
+                resolve();
+            });
         });
-    });
+    }
     connect();
-    const getTimestamp = (record) => {
+    function getTimestamp(record) {
         let date;
         const now = opConfig.timestamp_now;
         const field = opConfig.timestamp_field;
@@ -65,8 +69,8 @@ function newProcessor(context, opConfig) {
             date = new Date(date);
         }
         return date.getTime();
-    };
-    const produce = (record) => {
+    }
+    function produce(record) {
         const key = _.get(record.data, opConfig.id_field, record.key);
         const timestamp = getTimestamp(record);
         const err = producer.produce(
@@ -80,38 +84,28 @@ function newProcessor(context, opConfig) {
             return err;
         }
         return null;
-    };
+    }
     return function processor(stream, sliceLogger) {
         sliceLogger.info('kafka_stream_sender starting batch');
-        const handleStream = () => {
-            const flushIfNeeded = (callback) => {
-                if (processed >= opConfig.size) {
-                    stream.pause();
-                    flush((err) => {
-                        stream.resume();
-                        callback(err);
-                    });
-                    return;
-                }
-                callback();
-            };
-            const handleRecord = (record, next) => {
-                const produceErr = produce(record);
-                if (produceErr != null && produceErr !== true) {
-                    sliceLogger.warn(`kafka_stream_sender producer queue is full ${processed}/${bufferSize}`, produceErr);
-                    processed = bufferSize;
-                } else {
-                    processed += 1;
-                }
-                flushIfNeeded((err) => {
-                    next(err, record);
-                });
-            };
-            if (opConfig.continue_stream) {
-                return stream.mapAsync(handleRecord).toStream();
+        function handleRecord(record) {
+            const produceErr = produce(record);
+            if (produceErr != null && produceErr !== true) {
+                sliceLogger.warn(`kafka_stream_sender producer queue is full ${processed}/${bufferSize}`, produceErr);
+                processed = bufferSize;
+            } else {
+                processed += 1;
             }
-            return stream.eachAsync(handleRecord).done();
-        };
+            if (processed >= opConfig.size) {
+                return flush();
+            }
+            return Promise.resolve();
+        }
+        function handleStream() {
+            if (opConfig.continue_stream) {
+                return stream.each(handleRecord);
+            }
+            return stream.each(handleRecord).done();
+        }
 
         return connect().then(handleStream);
     };

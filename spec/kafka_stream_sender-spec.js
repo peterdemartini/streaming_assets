@@ -6,7 +6,7 @@ const processor = require('../asset/kafka_stream_sender');
 const harness = require('teraslice_op_test_harness')(processor);
 const _ = require('lodash');
 
-const { StreamEntity, StreamSource } = require('../asset/node_modules/teraslice_stream');
+const { StreamEntity, Stream } = require('../asset/node_modules/teraslice_stream');
 
 const inputRecords = [
     { host: 'example.com' },
@@ -52,29 +52,25 @@ describe('kafka_stream_sender', () => {
         };
 
         const inputSize = 1000;
-        const streamSource = new StreamSource();
+        const stream = new Stream();
         const endStream = _.after(inputSize, () => {
-            streamSource.end();
+            stream.end();
         });
         _.times(inputSize, (i) => {
             const send = () => {
-                if (streamSource.isPaused()) {
+                if (stream.isPaused()) {
                     _.delay(send, 1);
                     return;
                 }
-                streamSource.write(_.sample(inputRecords), { key: i });
+                stream.write(_.sample(inputRecords), { key: i }).catch(done.fail);
                 endStream();
             };
             _.delay(send, i * 2);
         });
 
-        harness.run(streamSource.toStream(), opConfig)
+        harness.run(stream, opConfig)
             .then((resultStream) => {
-                resultStream.toArray((err, results) => {
-                    if (err) {
-                        done(err);
-                        return;
-                    }
+                resultStream.toArray().then((results) => {
                     expect(results.length).toEqual(inputSize);
 
                     // All the results should be the same.
@@ -84,7 +80,7 @@ describe('kafka_stream_sender', () => {
                     expect(results[1].data.host).toContain('example');
 
                     done();
-                });
+                }).catch(done.fail);
             });
     }, 5000);
 });

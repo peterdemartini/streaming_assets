@@ -8,7 +8,7 @@ const _ = require('lodash');
  */
 function newProcessor(context, opConfig) {
     return function processor(stream, sliceLogger) {
-        const args = opConfig.args;
+        const { args } = opConfig;
         const fn = opConfig.function;
         const functions = {
             set: (data) => {

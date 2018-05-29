@@ -11,7 +11,7 @@ function newProcessor(context, opConfig) {
         if (!isStream(stream)) {
             return stream;
         }
-        const args = opConfig.args;
+        const { args } = opConfig;
         const fn = opConfig.function;
         const functions = {
             startsWith: record => _.startsWith(_.get(record.data, args.path), args.value),

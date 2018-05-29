@@ -144,10 +144,6 @@ asynckit@^0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/asynckit/-/asynckit-0.4.0.tgz#c79ed97f7f34cb8f2ba1bc9790bcc366474b4b79"
 
-auto-bind@^1.2.0:
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/auto-bind/-/auto-bind-1.2.0.tgz#8b7e318aad53d43ba8a8ecaf0066d85d5f798cd6"
-
 aws-sign2@~0.7.0:
   version "0.7.0"
   resolved "https://registry.yarnpkg.com/aws-sign2/-/aws-sign2-0.7.0.tgz#b46e890934a9591f2d2f6f86d7e6a9f1b3fe76a8"
@@ -1347,10 +1343,6 @@ has@^1.0.1:
   dependencies:
     function-bind "^1.0.2"
 
-highland@^3.0.0-beta.6:
-  version "3.0.0-beta.6"
-  resolved "https://registry.yarnpkg.com/highland/-/highland-3.0.0-beta.6.tgz#09df0897b16a1e59efa5a909613593568b147743"
-
 hooks-fixed@2.0.2:
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/hooks-fixed/-/hooks-fixed-2.0.2.tgz#20076daa07e77d8a6106883ce3f1722e051140b0"
@@ -1700,7 +1692,7 @@ lodash@^3.0.0:
   version "3.10.1"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-3.10.1.tgz#5bf45e8e49ba4189e17d482789dfd15bd140b7b6"
 
-lodash@^4.12.0, lodash@^4.14.0, lodash@^4.17.10, lodash@^4.17.4, lodash@^4.17.5, lodash@^4.3.0, lodash@~4.17.5:
+lodash@^4.12.0, lodash@^4.14.0, lodash@^4.17.4, lodash@^4.17.5, lodash@^4.3.0, lodash@~4.17.5:
   version "4.17.10"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.10.tgz#1b7793cf7259ea38fb3661d4d38b3260af8ae4e7"
 
@@ -2724,16 +2716,6 @@ teraslice_op_test_harness@terascope/teraslice_op_test_harness:
     bluebird "^3.5.1"
     lodash "^4.17.4"
     teraslice terascope/teraslice
-
-teraslice_stream@terascope/teraslice_stream:
-  version "1.0.0"
-  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/8f4f5fab0655541c033a30fdb8affc51d1fbe2dc"
-  dependencies:
-    auto-bind "^1.2.0"
-    bluebird "^3.5.1"
-    highland "^3.0.0-beta.6"
-    lodash "^4.17.10"
-    uuid "^3.2.1"
 
 text-table@~0.2.0:
   version "0.2.0"

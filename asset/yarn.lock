@@ -2,25 +2,49 @@
 # yarn lockfile v1
 
 
+async@^2.6.1:
+  version "2.6.1"
+  resolved "https://registry.yarnpkg.com/async/-/async-2.6.1.tgz#b245a23ca71930044ec53fa46aa00a3e87c6a610"
+  dependencies:
+    lodash "^4.17.10"
+
 bluebird@^3.5.0, bluebird@^3.5.1:
   version "3.5.1"
   resolved "https://registry.yarnpkg.com/bluebird/-/bluebird-3.5.1.tgz#d9551f9de98f1fcda1e683d17ee91a0602ee2eb9"
-
-highland@^3.0.0-beta.6:
-  version "3.0.0-beta.6"
-  resolved "https://registry.yarnpkg.com/highland/-/highland-3.0.0-beta.6.tgz#09df0897b16a1e59efa5a909613593568b147743"
 
 lodash@^4.17.10, lodash@^4.17.5:
   version "4.17.10"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.10.tgz#1b7793cf7259ea38fb3661d4d38b3260af8ae4e7"
 
+p-break@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/p-break/-/p-break-1.0.0.tgz#89735a5d19d4814ac91e81b8a63ddeecf8bd7a92"
+
+p-event@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/p-event/-/p-event-2.0.0.tgz#0efccf409c3b3a9ef5cd078ca39de7d446b43799"
+  dependencies:
+    p-timeout "^2.0.1"
+
+p-finally@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/p-finally/-/p-finally-1.0.0.tgz#3fbcfb15b899a44123b34b6dcc18b724336a2cae"
+
+p-timeout@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/p-timeout/-/p-timeout-2.0.1.tgz#d8dd1979595d2dc0139e1fe46b8b646cb3cdf038"
+  dependencies:
+    p-finally "^1.0.0"
+
 teraslice_stream@terascope/teraslice_stream:
   version "1.0.0"
-  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/d7b99f1220cd1929d1c6a719374001da298a63a9"
+  resolved "https://codeload.github.com/terascope/teraslice_stream/tar.gz/3ab2d6013913253010e19221f70dcb62fb25c138"
   dependencies:
+    async "^2.6.1"
     bluebird "^3.5.1"
-    highland "^3.0.0-beta.6"
     lodash "^4.17.10"
+    p-break "^1.0.0"
+    p-event "^2.0.0"
     uuid "^3.2.1"
 
 uuid@^3.2.1:

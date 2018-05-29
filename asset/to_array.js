@@ -1,7 +1,6 @@
 'use strict';
 
 const _ = require('lodash');
-const Promise = require('bluebird');
 const { isStream, isStreamEntity } = require('teraslice_stream');
 /*
  * This processor adapts the incoming array into a Highland stream so that
@@ -15,19 +14,10 @@ function newProcessor() {
             }
             return record;
         });
-        return new Promise((resolve, reject) => {
-            if (isStream(input)) {
-                input.toArray((err, result) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-                    resolve(convertToData(result));
-                });
-                return;
-            }
-            resolve(convertToData(_.castArray(input)));
-        });
+        if (isStream(input)) {
+            return input.toArray().then(convertToData);
+        }
+        return Promise.resolve(convertToData(_.castArray(input)));
     };
 }
 
