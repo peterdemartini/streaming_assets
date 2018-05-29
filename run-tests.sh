@@ -2,7 +2,7 @@
 
 die() {
   run_command_on_jobs "stop"
-  kill $(jobs -p) 2>/dev/null
+  pgrep 'run-test' | xargs kill
 }
 
 _term() {
@@ -73,12 +73,12 @@ remove_log_files() {
 
 ensure_clean_slate() {
     echo "[*] cleaning up"
+    remove_log_files && \
     run_command_on_jobs "stop" && \
         run_command_on_jobs "update" && \
-        remove_log_files && \
-        reset_dataset && \
         reset_kafka_for_job "old-kafka-etl" && \
-        reset_kafka_for_job "new-kafka-etl"
+        reset_kafka_for_job "new-kafka-etl" && \
+        reset_dataset
     echo "[*] done cleaning up"
 }
 

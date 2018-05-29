@@ -16,7 +16,6 @@ function newReader(context, opConfig) {
     const consumer = context.foundation.getConnection({
         type: 'kafka',
         endpoint: opConfig.connection,
-        autoconnect: false,
         options: {
             type: 'consumer',
             group: opConfig.group
@@ -123,12 +122,19 @@ function newReader(context, opConfig) {
             rollbackOffsets = startingOffsets;
         });
     });
+    let initialConnect = true;
     const connectToConsumer = () => new Promise((resolve, reject) => {
         if (shuttingDown) {
             reject(new Error('Processor shutting down'));
             return;
         }
         if (consumer.isConnected()) {
+            if (initialConnect) {
+                consumer.subscribe([opConfig.topic]);
+                resolve();
+                initialConnect = false;
+                return;
+            }
             waitForRetry(() => {
                 resolve();
             });
@@ -143,7 +149,7 @@ function newReader(context, opConfig) {
     return (data, sliceLogger) => {
         sliceLogger.info(`kafka_stream_reader starting new batch of ${batchSize}`);
         const stream = new Stream();
-        (function pullNext(remaining) {
+        function pullNext(remaining) {
             sliceLogger.debug(`stream_batch: pullNext (${remaining})`);
             if (!remaining) {
                 return Promise.resolve();
@@ -178,16 +184,19 @@ function newReader(context, opConfig) {
                         // they can be committed.
                         endingOffsets[message.partition] = message.offset + 1;
                     });
-                    return Promise.delay(100).then(() => pullNext(remaining - _.size(messages)));
+                    return Promise.delay(0).then(() => pullNext(remaining - _.size(messages)));
                 });
             }).catch((err) => {
                 sliceLogger.warn('stream_batch: got message with error', err);
                 return Promise.reject(err);
             });
-        }(batchSize)).then(() => {
-            stream.end();
+        }
+        return connectToConsumer().then(() => {
+            pullNext(batchSize).then(() => {
+                stream.end();
+            });
+            return Promise.resolve(stream);
         });
-        return connectToConsumer().then(() => stream);
     };
 }
 

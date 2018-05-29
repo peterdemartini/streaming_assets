@@ -13,7 +13,6 @@ function newProcessor(context, opConfig) {
         options: {
             type: 'producer'
         },
-        autoconnect: false,
         rdkafka_options: {
             'compression.codec': opConfig.compression,
             'queue.buffering.max.messages': bufferSize,
